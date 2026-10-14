@@ -1,0 +1,14 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Play, Users, ArrowLeft, ExternalLink } from "lucide-react";
+import { db } from "@/lib/db";
+import { currentUser } from "@/lib/session";
+import { movieSummary } from "@/lib/media";
+import { regionForRequest } from "@/lib/security";
+import { WatchlistButton } from "@/components/watchlist-button";
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; const movie = await db.movie.findUnique({ where: { id }, include: { sources: true } }); if (!movie) notFound();
+  const user = await currentUser(); const saved = user ? await db.watchlist.findUnique({ where: { userId_movieId: { userId: user.id, movieId: id } } }) : null;
+  const data = movieSummary(movie, regionForRequest());
+  return <section className="page-container"><Link href="/movies" className="back-link"><ArrowLeft size={16} />All movies</Link><div className="movie-detail"><div className="detail-poster" style={{ backgroundImage: `url('${movie.poster}')` }} /><div className="detail-copy"><span className="eyebrow">BLENDER OPEN CINEMA</span><h1>{movie.title}</h1><div className="movie-meta"><span>{movie.year}</span><span>{Math.round(movie.durationSeconds / 60)} min</span><span className="pill">{movie.rating}</span><span>{movie.genres.join(" / ")}</span></div><p className="detail-synopsis">{movie.synopsis}</p><div className="button-row">{data.available && <><Link href={user ? `/watch/${id}` : "/login"} className="button button-primary"><Play size={17} fill="currentColor" />Watch now</Link><Link href={`/cinemas/new?movie=${id}`} className="button button-glass"><Users size={17} />Watch together</Link></>}<WatchlistButton movieId={id} signedIn={Boolean(user)} initialSaved={Boolean(saved)} /></div>{!data.available && <p className="availability-note">Available to discover. Authorized full-film delivery is not configured for this title yet.</p>}<h3>Cast & creators</h3><p className="muted">{movie.cast.join(" · ")}</p><a href={movie.metadataSource} target="_blank" rel="noreferrer" className="subtle-link">Official film project <ExternalLink size={12} className="inline" /></a>{data.available && <div className="rights-note"><span className="pill">{data.license}</span>{movie.sources.filter(s => s.authorized && s.enabled).map(s => <p key={s.id}><small>{s.attribution} <a href={s.rightsUrl} target="_blank" rel="noreferrer">License & rights</a></small></p>)}</div>}</div></div>{movie.trailerUrl && <div className="trailer-section"><h2>Official trailer</h2><video controls muted preload="none" src={movie.trailerUrl} className="trailer-video" aria-label={`${movie.title} authorized trailer`} /><small className="muted">Sintel © Blender Foundation. Official trailer, CC BY 3.0.</small></div>}</section>;
+}

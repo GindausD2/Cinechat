@@ -1,0 +1,55 @@
+name: CineChat checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: cinechat
+          POSTGRES_USER: cinechat
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U cinechat -d cinechat" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://cinechat:ci-only-password@localhost:5432/cinechat
+      REDIS_URL: redis://localhost:6379
+      APP_ORIGIN: http://localhost:3000
+      AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: http://localhost:3001
+      EMAIL_DEV_OUTBOX: "true"
+      ALLOW_LOCAL_MEDIA: "true"
+      MEDIA_ALLOWED_HOSTS: download.blender.org,localhost
+      REGION_DEFAULT: US
+      BILLING_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Generate ephemeral test secrets
+        run: node -e 'const c=require("crypto");const fs=require("fs");fs.appendFileSync(process.env.GITHUB_ENV,"AUTH_SECRET="+c.randomBytes(48).toString("hex")+"\nREALTIME_SECRET="+c.randomBytes(48).toString("hex")+"\n");'
+      - run: npm ci
+      - run: npm run db:generate && npm run db:migrate && npm run db:seed
+      - run: npm run media:setup
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+      - run: npm run test:e2e
+      - run: npm audit --omit=dev
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: |
+            test-results/
+            playwright-report/
