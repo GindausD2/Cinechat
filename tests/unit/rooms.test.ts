@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Subscription } from "@prisma/client";
 import { planLimits } from "@/lib/rooms";
-import { createRoomSchema } from "@/lib/validation";
+import { createRoomSchema, reactionSchema } from "@/lib/validation";
 afterEach(() => vi.useRealTimers());
 describe("room limits and creation input", () => {
   it("enforces free, active Pro and expired plan capacities", () => {
@@ -18,5 +18,11 @@ describe("room limits and creation input", () => {
     expect(createRoomSchema.safeParse({ ...input, accessCode: "123" }).success).toBe(false);
     expect(createRoomSchema.safeParse({ ...input, capacity: 1000 }).success).toBe(false);
     expect(createRoomSchema.safeParse({ ...input, title: " " }).success).toBe(false);
+  });
+  it("accepts the seven supported emojis and rejects arbitrary reaction content", () => {
+    for (const emoji of ["❤️", "😂", "😮", "😢", "👏", "🔥", "👍"]) expect(reactionSchema.safeParse({ emoji }).success).toBe(true);
+    for (const emoji of ["🎬", "hello", "<script>", ""]) expect(reactionSchema.safeParse({ emoji }).success).toBe(false);
+    expect(reactionSchema.safeParse({ emoji: "❤️", messageId: "" }).success).toBe(false);
+    expect(reactionSchema.safeParse({ emoji: "❤️", messageId: "x".repeat(129) }).success).toBe(false);
   });
 });

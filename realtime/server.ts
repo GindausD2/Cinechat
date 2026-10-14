@@ -96,7 +96,10 @@ subscriber.on("message", (_channel, text) => {
         if (event.type === "ended" || (event.type === "removed" && event.userId === socket.data.userId)) {
           socket.emit("removed", { reason: event.type === "ended" ? "The host ended this screening." : "You left or were removed from this cinema." }); await removePresence(socket, event.roomId); await socket.leave(`room:${event.roomId}`); socket.data.roomId = undefined; continue;
         }
-        await authorizedRoom(socket);
+        const { room } = await authorizedRoom(socket);
+        // Also guard the shared Redis delivery boundary: old or injected events
+        // must not turn a public theater back into a text-chat channel.
+        if (room.visibility === "PUBLIC" && (event.type === "message" || (event.type === "reaction" && (event.data as { messageId?: string })?.messageId))) continue;
         if (event.type === "refresh" || event.type === "removed") await sendState(socket, event.roomId);
         else if (!blocks.some(b => b.blockerId === socket.data.userId || b.blockedId === socket.data.userId)) socket.emit(event.type, event.data);
       } catch { socket.emit("removed", { reason: "This screening is no longer available to your account." }); await socket.leave(`room:${event.roomId}`); await removePresence(socket, event.roomId); socket.data.roomId = undefined; }

@@ -49,3 +49,14 @@ and a local-only email outbox. Live email delivery never uses the development ou
 - [x] Verify lint, TypeScript, production build, 21 unit tests, and 8 production browser tests.
 - [x] Capture and inspect desktop/mobile views in both themes and correct visual/contrast regressions.
 - [x] Document assets, licenses, screenshots, changed files, and remaining launch configuration in [REDESIGN.md](REDESIGN.md).
+
+## Public/private theater correction
+
+- [x] Inspect existing memberships, invitations, playback, messaging, and reactions.
+- [x] Restrict text-message creation and history to active private-theater members.
+- [x] Reject public messages through HTTP, WebSockets, and Redis event delivery.
+- [x] Add all seven requested reactions with temporary player animations and reduced-motion support.
+- [x] Preserve fullscreen, host controls, private chat, invitations, codes, moderation, and reconnect recovery.
+- [x] Use two-step creation and membership-filtered public/private lobbies with current viewer counts.
+- [x] Complete final lint, TypeScript, 22 unit tests, production build, 10 production browser tests, and visual checks.
+- [x] Record final results, changed files, and inspected screenshots in [THEATERS.md](THEATERS.md).

@@ -4,8 +4,11 @@ import { requireUser } from "@/lib/session";
 import { roomAccess, roomSnapshot, joinRoom, leaveRoom, createInvitation } from "@/lib/rooms";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/redis";
-import { AppError } from "@/lib/security";
+import { AppError, ageAt, regionForRequest } from "@/lib/security";
 import { publishRoomEvent } from "@/lib/events";
+import { sendMessage, sendReaction } from "@/lib/live";
+import { messageSchema, reactionSchema } from "@/lib/validation";
+import { playableSource } from "@/lib/media";
 export const GET = api(async request => { const user = await requireUser(); const id = new URL(request.url).pathname.split("/").pop()!; return roomSnapshot(id, user); });
 export const POST = api(async request => {
   const user = await requireUser(); const roomId = new URL(request.url).pathname.split("/").pop()!;
@@ -15,12 +18,19 @@ export const POST = api(async request => {
     z.object({ action: z.literal("invite"), maxUses: z.number().int().min(1).max(50).default(1) }),
     z.object({ action: z.literal("revoke-invite"), invitationId: z.string() }),
     z.object({ action: z.literal("end") }),
+    z.object({ action: z.literal("message"), ...messageSchema.shape }),
+    z.object({ action: z.literal("reaction"), ...reactionSchema.shape }),
     z.object({ action: z.literal("moderate"), targetId: z.string(), command: z.enum(["remove", "mute", "unmute"]) })
   ]).parse(await jsonBody(request));
   await rateLimit(`room-action:${user.id}`, 30, 60);
   if (input.action === "join") return joinRoom(roomId, user, input.token, input.accessCode);
   if (input.action === "leave") return leaveRoom(roomId, user.id);
   if (input.action === "invite") return createInvitation(roomId, user.id, input.maxUses);
+  if (input.action === "message" || input.action === "reaction") {
+    const { room } = await roomAccess(roomId, user.id);
+    playableSource(room.movie, regionForRequest(), ageAt(user.profile?.birthDate || null));
+    return input.action === "message" ? sendMessage(roomId, user.id, input) : sendReaction(roomId, user.id, input);
+  }
   const { room } = await roomAccess(roomId, user.id);
   if (room.hostId !== user.id) throw new AppError(403, "Host permission required.");
   if (input.action === "revoke-invite") { await db.invitation.updateMany({ where: { id: input.invitationId, roomId }, data: { revoked: true } }); return { revoked: true }; }

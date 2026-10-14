@@ -13,14 +13,14 @@ async function chooseTheme(page: Page, theme: "Dark" | "Light" | "System") {
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
-async function capture(page: Page, name: string) {
+async function capture(page: Page, name: string, directory = "redesign") {
   await page.evaluate(() => document.fonts.ready);
   // Load off-screen artwork for a complete full-page capture without changing its layout.
   await page.evaluate(() => Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("main img")).map(image => { image.loading = "eager"; return image.decode(); })));
   await expect.poll(() => page.locator('.movie-art img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
   await noOverflow(page);
-  await page.screenshot({ path: `test-results/redesign/${name}.png`, fullPage: true, animations: "disabled" });
-  await page.screenshot({ path: `test-results/redesign/${name}-viewport.png`, animations: "disabled" });
+  await page.screenshot({ path: `test-results/${directory}/${name}.png`, fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: `test-results/${directory}/${name}-viewport.png`, animations: "disabled" });
   const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(accessibility.violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, reason: node.failureSummary })) })), name).toEqual([]);
 }
@@ -117,7 +117,38 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
     // Discover a real public screening created through the same authorized API.
     const publicResponse = await page.request.post("/api/rooms",{headers,data:{title:"Premium public screening",movieId:"big-buck-bunny",visibility:"PUBLIC",capacity:8}});
     expect(publicResponse.ok()).toBe(true); const publicId = (await publicResponse.json()).id;
-    try { await page.reload(); await expect(page.getByText("Premium public screening",{exact:true})).toBeVisible(); }
+    try {
+      await page.reload(); await expect(page.getByText("Premium public screening",{exact:true})).toBeVisible();
+      await page.goto(`/cinemas/${publicId}`); await expect(page.getByText("Live & synchronized")).toBeVisible();
+      await expect(page.getByTestId("cinema-video")).toHaveJSProperty("readyState",4);
+      for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {
+        await page.setViewportSize({width,height});
+        for (const theme of ["Dark","Light"] as const) {
+          await chooseTheme(page,theme);
+          await expect(page.locator(".glass-chat-panel, .chat-compose")).toHaveCount(0);
+          await expect(page.getByRole("button",{name:/chat/i})).toHaveCount(0);
+          await expect(page.getByRole("group",{name:"Cinema reactions"}).getByRole("button")).toHaveCount(7);
+          const play = await page.locator(".center-play").boundingBox(), bar = await page.locator(".reaction-bar").boundingBox();
+          expect(bar).not.toBeNull();
+          if (play) expect(play.y + play.height <= bar!.y || play.y >= bar!.y + bar!.height).toBe(true);
+          else await expect(page.locator(".controls-row").getByRole("button",{name:"Play film",exact:true})).toBeEnabled();
+          await capture(page,`public-${device}-${theme.toLowerCase()}`,"theaters");
+        }
+      }
+      for (const width of [320,360,768,1024]) {
+        await page.setViewportSize({width,height:900}); await noOverflow(page);
+        expect(await page.locator(".reaction-bar").evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+      }
+      await page.setViewportSize({width:1440,height:1000}); await page.goto("/cinemas/new?movie=big-buck-bunny");
+      for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {
+        await page.setViewportSize({width,height});
+        for (const theme of ["Dark","Light"] as const) { await chooseTheme(page,theme); await capture(page,`creator-${device}-${theme.toLowerCase()}`,"theaters"); }
+      }
+      await page.getByRole("button",{name:/Private Theater Watch with invited friends/}).click();
+      await expect(page.getByLabel("Theater name")).toBeVisible(); await expect(page.getByLabel("Access code (optional)")).toBeVisible(); await noOverflow(page);
+      await page.goto("/cinemas?type=private"); await expect(page.getByRole("link",{name:/Premium private screening/})).toBeVisible(); await expect(page.getByRole("link",{name:/Premium public screening/})).toHaveCount(0);
+      await page.goto("/cinemas?type=public"); await expect(page.getByRole("link",{name:/Premium public screening/})).toBeVisible(); await expect(page.getByRole("link",{name:/Premium private screening/})).toHaveCount(0);
+    }
     finally { await page.request.post(`/api/rooms/${publicId}`,{headers,data:{action:"end"}}); }
   } finally {
     await page.request.post(`/api/rooms/${roomId}`,{headers,data:{action:"end"}});

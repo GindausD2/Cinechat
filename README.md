@@ -11,6 +11,12 @@ preference persists across reloads and tabs. The premium design, changed-file
 inventory, artwork licenses, and inspected screenshots are documented in
 [the redesign report](docs/REDESIGN.md).
 
+Public theaters provide synchronized movies, live viewers, and seven temporary
+emoji reactions only. Text chat is restricted to authorized private-theater
+members. Choose **Create theater**, select Public or Private, then configure the
+film, seats, schedule, and optional private access code. The theater changes,
+security checks, and screenshots are documented in [THEATERS.md](docs/THEATERS.md).
+
 ## Run locally
 
 Requirements: Node.js 24, Docker Compose, curl and Python 3 for the official sample
@@ -38,11 +44,13 @@ Open the verification link in the newest matching file, click Verify email, and
 sign in. This is an actual verification flow; the local outbox is never served over
 HTTP and is disabled in production. Configure SMTP for real email delivery.
 
-Two-browser demo: register two users; host Big Buck Bunny in a cinema; create an
+Two-browser private demo: register two users; host Big Buck Bunny in a private theater; create an
 invitation; open it in the second browser; enter any separately shared room code;
 join, play, chat and react. Guests follow host playback. Audio starts muted to meet
 browser autoplay restrictions; tap the volume control to enable it. Leave and
 rejoin or reload to recover current authoritative playback and recent chat.
+For a public screening, the second user joins from Live Cinemas. Both viewers can
+react with ❤️ 😂 😮 😢 👏 🔥 👍; public chat is rejected by the server.
 
 Set `ADMIN_EMAILS` to your email **before registering** to create a verified admin.
 Existing users are not silently promoted. Admin UI: `/admin`; every admin API
@@ -69,7 +77,8 @@ licensed sample setup, unit tests, production build, and browser acceptance test
 against that build. Production browser tests configure a local SMTP receiver for
 synthetic test addresses; the app’s production email safeguards stay enabled.
 Design tests also run automated WCAG checks and save captures in
-`test-results/redesign/`. CI retains browser reports and screenshots for seven days.
+`test-results/redesign/` and `test-results/theaters/`. CI retains browser reports
+and screenshots for seven days.
 
 ## Features
 
@@ -83,8 +92,11 @@ Design tests also run automated WCAG checks and save captures in
   invitation tokens, access codes, revocation, membership and host moderation.
 - Direct HTML5/HLS media playback, host-controlled versioned playback, reconnect,
   late join, drift correction, seek, audio, fullscreen and subtitle track support.
-- Authenticated real-time chat, timestamps, avatars, reactions, live presence,
-  message/room reporting, blocking, muting and shared rate limits.
+- Authenticated real-time private chat with timestamps and avatars. Both theater
+  types have temporary synchronized emoji reactions, live presence, room reporting,
+  blocking, muting, and shared rate limits. Public text chat is disabled at every boundary.
+- Separate public/private discovery filters with refreshed viewer counts, a
+  two-step theater creator, and persisted blue/midnight Pro atmospheres.
 - Following, friendship requests/acceptance, clubs, private profiles, notifications
   and idempotent in-app screening reminders. Private watching activity stays private.
 - Admin users/rooms/reports, catalog creation, media-rights administration,

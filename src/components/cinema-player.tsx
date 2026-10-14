@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Captions, LoaderCircle } from "lucide-react";
 import Hls from "hls.js";
 import { driftCorrection } from "@/lib/playback";
@@ -7,7 +7,7 @@ import { GlassPlayerControls } from "./glass";
 export type ClientPlayback = { playing: boolean; position: number; version: number; serverTime: number; duration: number };
 function formatTime(value: number) { const seconds = Math.max(0, Math.floor(value)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`; }
 function switchTextTracks(element: HTMLVideoElement) { for (const track of element.textTracks) track.mode = track.mode === "showing" ? "disabled" : "showing"; }
-export function CinemaPlayer({ media, playback, canControl, onControl, movieId, clockOffset = 0, isSolo = false, poster }: { media: { url: string; format: string; subtitleUrl: string | null }; playback: ClientPlayback; canControl: boolean; onControl: (action: "play" | "pause" | "seek", position?: number) => void; movieId: string; clockOffset?: number; isSolo?: boolean; poster?: string }) {
+export function CinemaPlayer({ media, playback, canControl, onControl, movieId, clockOffset = 0, isSolo = false, poster, children }: { media: { url: string; format: string; subtitleUrl: string | null }; playback: ClientPlayback; canControl: boolean; onControl: (action: "play" | "pause" | "seek", position?: number) => void; movieId: string; clockOffset?: number; isSolo?: boolean; poster?: string; children?: ReactNode }) {
   const video = useRef<HTMLVideoElement>(null), shell = useRef<HTMLDivElement>(null), saveTime = useRef(0), received = useRef(playback);
   const [position, setPosition] = useState(playback.position), [muted, setMuted] = useState(true), [volume, setVolume] = useState(.7), [buffering, setBuffering] = useState(true), [error, setError] = useState("");
   useEffect(() => {
@@ -56,6 +56,7 @@ export function CinemaPlayer({ media, playback, canControl, onControl, movieId, 
     {!playback.playing && !buffering && <button aria-label={canControl ? "Play film" : "Waiting for host"} className="center-play" onClick={toggle} disabled={!canControl}><Play size={28} fill="currentColor" /></button>}
     {buffering && <div className="player-loading" role="status"><LoaderCircle size={28} className="spin" /><span>Finding your frame…</span></div>}
     {error && <div className="player-error" role="alert">{error}<button onClick={() => { setError(""); video.current?.load(); }}>Reload media</button></div>}
+    {children}
     <GlassPlayerControls><div className="seek-line"><input type="range" aria-label="Seek film" min="0" max={playback.duration} step=".1" value={Math.min(position, playback.duration)} disabled={!canControl} onChange={e => onControl("seek", Number(e.target.value))} /></div><div className="controls-row"><button aria-label={playback.playing ? "Pause film" : "Play film"} disabled={!canControl} onClick={toggle}>{playback.playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><span className="player-time">{formatTime(position)} <span>/ {formatTime(playback.duration)}</span></span><span className="host-control-label">{isSolo ? "YOUR SCREENING" : canControl ? "YOU’RE THE HOST" : "HOST CONTROLS PLAYBACK"}</span><button aria-label={muted ? "Unmute audio" : "Mute audio"} onClick={audioToggle}>{muted ? <VolumeX size={18} /> : <Volume2 size={18} />}</button><input type="range" className="volume-slider" aria-label="Volume" min="0" max="1" step=".05" value={volume} onChange={e => { const value = Number(e.target.value); setVolume(value); if (video.current) { video.current.volume = value; video.current.muted = value === 0; setMuted(value === 0); } }} />{media.subtitleUrl && <button aria-label="Toggle subtitles" onClick={toggleCaptions}><Captions size={18} /></button>}<button aria-label="Fullscreen" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void shell.current?.requestFullscreen().catch(() => setError("Fullscreen is not supported in this browser.")); }}><Maximize size={18} /></button></div></GlassPlayerControls>
   </div>;
 }
