@@ -38,3 +38,14 @@ Google OAuth, transactional email, production PostgreSQL/Redis, production media
 storage, payment credentials and commercial streaming licenses are not configured.
 Local development uses actual PostgreSQL and Redis, licensed Blender open films,
 and a local-only email outbox. Live email delivery never uses the development outbox.
+
+
+## Premium design follow-up
+
+- [x] Inspect the V1 architecture, components, data, and acceptance coverage.
+- [x] Replace inconsistent styling with semantic dark/light tokens and persistent system-aware appearance controls.
+- [x] Redesign navigation, home discovery, posters, movie editorial pages, and cinema/player/chat presentation.
+- [x] Preserve existing APIs, authentication, PostgreSQL/Redis data, permissions, and synchronization.
+- [x] Verify lint, TypeScript, production build, 21 unit tests, and 8 production browser tests.
+- [x] Capture and inspect desktop/mobile views in both themes and correct visual/contrast regressions.
+- [x] Document assets, licenses, screenshots, changed files, and remaining launch configuration in [REDESIGN.md](REDESIGN.md).

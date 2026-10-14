@@ -5,6 +5,7 @@ const localMediaOrigins = process.env.ALLOW_LOCAL_MEDIA === "true" ? ` http://lo
 const websocketOrigin = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 const config: NextConfig = {
   poweredByHeader: false,
+  devIndicators: false,
   async headers() {
     return [{ source: "/(.*)", headers: [
       { key: "X-Content-Type-Options", value: "nosniff" },

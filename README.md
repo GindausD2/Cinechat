@@ -1,10 +1,15 @@
 # CineChat V1
 
 A working social cinema built with Next.js 16, React 19, TypeScript, Tailwind CSS,
-Motion, Auth.js, PostgreSQL/Prisma, Socket.IO and Redis. Original dark glass identity,
-licensed open-film discovery, public/private screenings and server-authoritative
+Motion, Auth.js, PostgreSQL/Prisma, Socket.IO and Redis. Original cinematic identity,
+intentional dark/light themes, licensed open-film discovery, public/private screenings and server-authoritative
 playback synchronization. The original repository contained only a README:
 “Watch movies with friends in black & white.”
+
+Use the appearance control in the header to choose Dark, Light, or System. The
+preference persists across reloads and tabs. The premium design, changed-file
+inventory, artwork licenses, and inspected screenshots are documented in
+[the redesign report](docs/REDESIGN.md).
 
 ## Run locally
 
@@ -51,6 +56,8 @@ npm run typecheck
 npm test
 npm run build
 npm run test:e2e
+# Exercise the compiled app and a loopback-only SMTP receiver:
+E2E_PRODUCTION=true npm run test:e2e
 npm audit --omit=dev
 ```
 
@@ -58,7 +65,11 @@ Playwright starts local web, realtime and media services. It requires PostgreSQL
 Redis, seeded catalog, downloaded licensed sample and Chromium:
 `npx playwright install chromium`. Browser tests create local test users and data;
 never point the test configuration at a production database. CI runs migrations,
-licensed sample setup, unit tests, production build and browser acceptance tests.
+licensed sample setup, unit tests, production build, and browser acceptance tests
+against that build. Production browser tests configure a local SMTP receiver for
+synthetic test addresses; the app’s production email safeguards stay enabled.
+Design tests also run automated WCAG checks and save captures in
+`test-results/redesign/`. CI retains browser reports and screenshots for seven days.
 
 ## Features
 

@@ -23,7 +23,7 @@ test("two viewers register, discover, invite, synchronize, chat, react, and rejo
   const hostContext = await browser.newContext(), guestContext = await browser.newContext(); const host = await hostContext.newPage(), guest = await guestContext.newPage();
   await register(host, `host_${suffix}`); await register(guest, `guest_${suffix}`);
   await host.goto("/movies"); await host.getByRole("textbox", { name: "Search movies" }).fill("Big Buck"); await expect(host.locator(".movie-card")).toHaveCount(1); await host.locator(".movie-card").click(); await expect(host.getByRole("heading", { name: "Big Buck Bunny", exact: true })).toBeVisible();
-  await host.getByRole("button", { name: "Watchlist", exact: true }).click(); await expect(host.getByRole("button", { name: "In your watchlist" })).toBeVisible();
+  await host.getByRole("button", { name: "Add to My List", exact: true }).click(); await expect(host.getByRole("button", { name: "In My List" })).toBeVisible();
   await host.goto("/cinemas/new?movie=big-buck-bunny"); await host.getByRole("button", { name: "Private screening" }).click(); await host.getByLabel("Cinema title").fill("Acceptance private screening"); await host.getByLabel("Access code (optional)").fill("secret42"); await host.getByRole("button", { name: "Create your cinema" }).click(); await expect(host.getByText("Live & synchronized")).toBeVisible();
   const roomUrl = host.url(); const roomId = roomUrl.split("/").pop()!;
   const unauthorized = await guest.request.get(`/api/rooms/${roomId}`); expect(unauthorized.status()).toBe(404);

@@ -45,11 +45,14 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run lint && npm run typecheck && npm test && npm run build
       - run: npm run test:e2e
+        env:
+          E2E_PRODUCTION: "true"
       - run: npm audit --omit=dev
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: browser-failures
+          name: browser-results-and-design-captures
+          retention-days: 7
           path: |
             test-results/
             playwright-report/

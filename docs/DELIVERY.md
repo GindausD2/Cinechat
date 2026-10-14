@@ -1,5 +1,9 @@
 # CineChat V1 delivery
 
+This records the original foundation delivery. The subsequent premium interface,
+expanded production browser verification, and current design captures are in
+[REDESIGN.md](REDESIGN.md).
+
 Selected repository: **GindausD2/Cinechat**, explicitly confirmed by the owner.
 Baseline: `92b5a61a56d609802af5aa3850fca7a75d128a57` (README only).
 Implementation branch: `feat/cinechat-v1`. No public deployment or live charges.
