@@ -3,7 +3,7 @@ import { api, jsonBody } from "@/lib/api";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { rateLimit } from "@/lib/redis";
-import { planLimits } from "@/lib/rooms";
+import { planLimits, serializable } from "@/lib/rooms";
 import { AppError } from "@/lib/security";
 export const POST = api(async request => {
   const user = await requireUser(); await rateLimit(`clubs:${user.id}`, 20, 60);
@@ -12,11 +12,14 @@ export const POST = api(async request => {
     z.object({ action: z.enum(["join", "leave"]), clubId: z.string().max(128) })
   ]).parse(await jsonBody(request));
   if (input.action === "leave") { await db.clubMembership.deleteMany({ where: { clubId: input.clubId, userId: user.id } }); return { saved: true }; }
-  if (!planLimits(user.subscription).pro && await db.clubMembership.count({ where: { userId: user.id } }) >= 3) throw new AppError(403, "Free accounts can join three clubs. Leave a club to join another.");
-  if (input.action === "create") {
-    if (await db.movieClub.count({ where: { creatorId: user.id } }) >= 5) throw new AppError(403, "You already manage five clubs.");
-    const club = await db.movieClub.create({ data: { name: input.name, description: input.description, genre: input.genre, color: input.color, creatorId: user.id, memberships: { create: { userId: user.id } } } }); return { id: club.id };
-  }
-  if (!await db.movieClub.findUnique({ where: { id: input.clubId } })) throw new AppError(404, "Club not found.");
-  await db.clubMembership.upsert({ where: { clubId_userId: { clubId: input.clubId, userId: user.id } }, create: { clubId: input.clubId, userId: user.id }, update: {} }); return { saved: true };
+  return serializable(async tx => {
+    if (input.action === "join" && await tx.clubMembership.findUnique({ where: { clubId_userId: { clubId: input.clubId, userId: user.id } } })) return { saved: true };
+    if (!planLimits(user.subscription).pro && await tx.clubMembership.count({ where: { userId: user.id } }) >= 3) throw new AppError(403, "Free accounts can join three clubs. Leave a club to join another.");
+    if (input.action === "create") {
+      if (await tx.movieClub.count({ where: { creatorId: user.id } }) >= 5) throw new AppError(403, "You already manage five clubs.");
+      const club = await tx.movieClub.create({ data: { name: input.name, description: input.description, genre: input.genre, color: input.color, creatorId: user.id, memberships: { create: { userId: user.id } } } }); return { id: club.id };
+    }
+    if (!await tx.movieClub.findUnique({ where: { id: input.clubId } })) throw new AppError(404, "Club not found.");
+    await tx.clubMembership.upsert({ where: { clubId_userId: { clubId: input.clubId, userId: user.id } }, create: { clubId: input.clubId, userId: user.id }, update: {} }); return { saved: true };
+  });
 });

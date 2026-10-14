@@ -11,7 +11,7 @@ export function planLimits(subscription: Subscription | null) {
   const pro = subscription?.plan === "PRO" && ["active", "trialing"].includes(subscription.status) && Boolean(subscription.currentPeriodEnd && subscription.currentPeriodEnd > new Date());
   return { pro, capacity: pro ? 50 : 8, activeRooms: pro ? 12 : 3, privateRooms: pro ? 10 : 1 };
 }
-async function serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+export async function serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try { return await db.$transaction(work, { isolationLevel: "Serializable" }); }
     catch (e) { if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2034" || attempt === 2) throw e; }

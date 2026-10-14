@@ -14,6 +14,13 @@ test("friendships, following, clubs, privacy, notifications and admin authorizat
   const notices = await a.request.get("/api/notifications"); expect(JSON.stringify(await notices.json())).toContain("accepted");
   r = await a.request.post("/api/clubs", { headers, data: { action: "create", name: `Animation Society ${suffix}`, description: "A real community for open animated cinema.", genre: "Animation", color: "#d9e4c8" } }); expect(r.ok()).toBe(true); const clubId = (await r.json()).id;
   await b.goto(`/clubs/${clubId}`); await b.getByRole("button", { name: "Join club", exact: true }).click(); await expect(b.getByRole("button", { name: "Leave club", exact: true })).toBeVisible();
+  // Local database fixtures let independent join requests contend for two remaining seats in the plan.
+  const quotaClubs = await Promise.all([1,2,3].map(i => prisma.movieClub.create({ data: { name: `Quota fixture ${suffix}-${i}`, description: "Acceptance fixture for concurrent plan enforcement.", genre: "Animation", creatorId: aId } })));
+  const quotaResults = await Promise.all(quotaClubs.map(club => b.request.post("/api/clubs", { headers, data: { action: "join", clubId: club.id } })));
+  expect(quotaResults.filter(result => result.ok())).toHaveLength(2);
+  expect(quotaResults.filter(result => result.status() === 403)).toHaveLength(1);
+  expect(await prisma.clubMembership.count({ where: { userId: bId } })).toBe(3);
+  expect((await b.request.post("/api/clubs", { headers, data: { action: "join", clubId } })).ok()).toBe(true);
   r = await b.request.patch("/api/account", { headers, data: { username: `socialb_${suffix}`, biography: "Private profile", publicProfile: false, showActivity: false, allowFriendRequests: true } }); expect(r.ok()).toBe(true);
   expect((await a.request.get(`/profile/socialb_${suffix}`)).status()).toBe(404);
   expect((await a.request.get("/api/admin")).status()).toBe(403);
