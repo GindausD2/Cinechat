@@ -15,10 +15,21 @@ async function noOverflow(page: Page) {
 }
 async function capture(page: Page, name: string, directory = "redesign") {
   await page.evaluate(() => document.fonts.ready);
+  if (await page.getByTestId("cinema-video").count()) {
+    await expect(page.getByText("Live & synchronized")).toBeVisible();
+    await expect(page.getByTestId("cinema-video")).toHaveJSProperty("readyState",4);
+  }
   // Load off-screen artwork for a complete full-page capture without changing its layout.
   await page.evaluate(() => Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("main img")).map(image => { image.loading = "eager"; return image.decode(); })));
   await expect.poll(() => page.locator('.movie-art img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
   await noOverflow(page);
+  // Exercise off-screen content like a scrolling viewer before capturing it.
+  // Chromium can otherwise retain stale composited layers after a theme change.
+  await page.evaluate(async () => {
+    const paint = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    for (let y = 0; y < document.documentElement.scrollHeight; y += innerHeight) { scrollTo(0, y); await paint(); }
+    scrollTo(0, 0); await paint();
+  });
   await page.screenshot({ path: `test-results/${directory}/${name}.png`, fullPage: true, animations: "disabled" });
   await page.screenshot({ path: `test-results/${directory}/${name}-viewport.png`, animations: "disabled" });
   const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -62,7 +73,7 @@ test("discovery and movie editorial layouts render in both themes at desktop and
     await page.setViewportSize({ width,height });
     await page.goto("/");
     for (const theme of ["Dark","Light"] as const) {
-      await chooseTheme(page,theme);
+      await chooseTheme(page,theme); await page.reload();
       await expect(page.getByRole("heading", { level: 1, name: "Big Buck Bunny" })).toBeVisible();
       await capture(page,`home-${device}-${theme.toLowerCase()}`);
       await page.goto("/movies/big-buck-bunny");
@@ -101,8 +112,20 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
     for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {
       await page.setViewportSize({width,height});
       for (const theme of ["Dark","Light"] as const) {
-        await chooseTheme(page,theme);
+        await chooseTheme(page,theme); await page.reload();
         await capture(page,`room-${device}-${theme.toLowerCase()}`);
+        await page.getByRole("button", { name: "Invite", exact: true }).click();
+        await expect(page.getByRole("dialog")).toBeVisible();
+        const dialog = await page.getByRole("dialog").boundingBox(); expect(dialog).not.toBeNull();
+        expect(Math.abs(dialog!.x + dialog!.width / 2 - width / 2)).toBeLessThan(2); expect(dialog!.y).toBeGreaterThanOrEqual(15); expect(dialog!.height).toBeLessThanOrEqual(height - 31);
+        await expect(page.getByLabel("Invitation link")).not.toHaveValue("");
+        await capture(page,`invitation-${device}-${theme.toLowerCase()}`,"completion");
+        await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+        await page.goto("/cinemas");
+        await expect(page.getByRole("heading", { name: "Public Theater", exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Private Theater", exact: true })).toBeVisible();
+        await capture(page,`discovery-${device}-${theme.toLowerCase()}`,"completion");
+        await page.goto(`/cinemas/${roomId}`); await expect(page.getByText("Live & synchronized")).toBeVisible();
       }
     }
     await page.getByRole("button",{name:"Collapse chat"}).click();
@@ -124,7 +147,7 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
       for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {
         await page.setViewportSize({width,height});
         for (const theme of ["Dark","Light"] as const) {
-          await chooseTheme(page,theme);
+          await chooseTheme(page,theme); await page.reload();
           await expect(page.locator(".glass-chat-panel, .chat-compose")).toHaveCount(0);
           await expect(page.getByRole("button",{name:/chat/i})).toHaveCount(0);
           await expect(page.getByRole("group",{name:"Cinema reactions"}).getByRole("button")).toHaveCount(7);
@@ -142,7 +165,7 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
       await page.setViewportSize({width:1440,height:1000}); await page.goto("/cinemas/new?movie=big-buck-bunny");
       for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {
         await page.setViewportSize({width,height});
-        for (const theme of ["Dark","Light"] as const) { await chooseTheme(page,theme); await capture(page,`creator-${device}-${theme.toLowerCase()}`,"theaters"); }
+        for (const theme of ["Dark","Light"] as const) { await chooseTheme(page,theme); await page.reload(); await capture(page,`creator-${device}-${theme.toLowerCase()}`,"theaters"); }
       }
       await page.getByRole("button",{name:/Private Theater Watch with invited friends/}).click();
       await expect(page.getByLabel("Theater name")).toBeVisible(); await expect(page.getByLabel("Access code (optional)")).toBeVisible(); await noOverflow(page);

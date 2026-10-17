@@ -1,2 +1,3 @@
 import { AuthForm } from "@/components/auth-form";
-export default function Page() { return <AuthForm mode="register" />; }
+import { safeReturnPath } from "@/lib/return-path";
+export default async function Page({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) { return <AuthForm mode="register" returnTo={safeReturnPath((await searchParams).returnTo)} />; }

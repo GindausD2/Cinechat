@@ -51,6 +51,7 @@ test("public theaters synchronize video and ephemeral emojis while rejecting eve
     const snapshot = await host.request.get(`/api/rooms/${roomId}`); expect((await snapshot.json()).messages).toEqual([]);
     socket = await socketFor(host);
     const receivedMessages: unknown[] = [], receivedReactions: { emoji: string }[] = [], states: { messages: unknown[] }[] = [];
+    let participantUpdates = 0; socket.on("participants-changed", () => participantUpdates++);
     socket.on("message", m => receivedMessages.push(m)); socket.on("reaction", r => receivedReactions.push(r)); socket.on("state", state => states.push(state));
     expect((await emit(socket, "join", { roomId })).ok).toBe(true); await expect.poll(() => states.length).toBeGreaterThan(0); expect(states[0].messages).toEqual([]);
     for (const page of [host, guest]) {
@@ -64,7 +65,7 @@ test("public theaters synchronize video and ephemeral emojis while rejecting eve
     expect((await emit(socket, "reaction", { emoji: "🎬" })).status).toBe(400);
     await publishRoomEvent({ roomId, type: "message", data: { id: historical.id, userId: hostId, body: historical.body, name: "Host", createdAt: new Date().toISOString() } });
     await publishRoomEvent({ roomId, type: "refresh" });
-    await expect.poll(() => states.length).toBeGreaterThan(1); expect(states.at(-1)?.messages).toEqual([]);
+    await expect.poll(() => participantUpdates).toBeGreaterThan(0); expect(states.at(-1)?.messages).toEqual([]);
     for (const emoji of ["❤️", "😂", "😮", "😢", "👏", "🔥", "👍"]) {
       await guest.getByRole("button", { name: `React ${emoji}`, exact: true }).click();
       await expect(host.locator(".floating-reaction", { hasText: emoji })).toBeVisible(); await expect(guest.locator(".floating-reaction", { hasText: emoji })).toBeVisible();
@@ -118,8 +119,7 @@ test("private chat stays member-only and invitation, moderation, and reaction li
   await accountViaApi(outsider, `priother_${suffix}`);
   const sockets: Socket[] = []; let roomId = "";
   try {
-    // Test real plan enforcement using an isolated, paid-entitlement fixture.
-    await db.subscription.update({ where: { userId: hostId }, data: { plan: "PRO", status: "active", currentPeriodEnd: new Date(Date.now() + 86400000) } });
+    expect(await db.subscription.findUnique({ where: { userId: hostId } })).toBeNull();
     const created = await host.request.post("/api/rooms", { headers, data: { title: "Blue private theater", description: "An evening for invited friends.", movieId: "big-buck-bunny", visibility: "PRIVATE", capacity: 8, theme: "blue", accessCode: "private42" } });
     expect(created.ok()).toBe(true); roomId = (await created.json()).id;
     expect((await (await host.request.get(`/api/rooms/${roomId}`)).json()).theme).toBe("blue");

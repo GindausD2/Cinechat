@@ -1,0 +1,8 @@
+{
+  "authenticatedViewers": 100,
+  "workers": 2,
+  "uniqueWatchingCount": 101,
+  "joinMs": 1251,
+  "reactionFanoutMs": 31,
+  "concurrentRooms": 2
+}

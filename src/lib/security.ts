@@ -14,7 +14,10 @@ export function requireOrigin(request: Request) {
   const expected = new URL(process.env.APP_ORIGIN || "http://localhost:3000").origin;
   if (request.headers.get("origin") !== expected) throw new AppError(403, "Invalid request origin.");
 }
-export function regionForRequest() {
-  // Single launch-region deployment. Set from trusted infrastructure, never a client header.
+export function regionForRequest(headers?: { get: (name: string) => string | null }) {
+  // Configure only behind a trusted proxy that strips and overwrites this header.
+  const header = process.env.TRUSTED_COUNTRY_HEADER;
+  const country = header && headers?.get(header)?.toUpperCase();
+  if (country && /^[A-Z]{2}$/.test(country)) return country;
   return (process.env.REGION_DEFAULT || "US").toUpperCase();
 }

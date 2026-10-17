@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Radio, Lock } from "lucide-react";
+import { ScreeningTime } from "./screening-time";
 import type { TheaterListing, TheaterScope } from "@/lib/theaters";
 
 export function TheaterLobby({ initial, scope, upcoming, signedIn }: { initial: TheaterListing[]; scope: TheaterScope; upcoming: boolean; signedIn: boolean }) {
@@ -28,9 +29,9 @@ export function TheaterLobby({ initial, scope, upcoming, signedIn }: { initial: 
     <div className="room-grid">{rooms.map(room => <Link href={`/cinemas/${room.id}`} className={`room-card room-card-${room.visibility.toLowerCase()}`} key={room.id}>
       <div className="room-card-backdrop" style={{ backgroundImage: `url('${room.artwork}')` }} />
       <div className="room-card-content">
-        <span className="pill">{room.visibility === "PRIVATE" ? <Lock size={11} /> : <Radio size={11} />}{room.scheduledAt && new Date(room.scheduledAt) > new Date() ? new Date(room.scheduledAt).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }) + " UTC" : `${room.online} watching · ${room.capacity} seats`}</span>
+        <span className="pill">{room.visibility === "PRIVATE" ? <Lock size={11} /> : <Radio size={11} />}{room.scheduledAt && new Date(room.scheduledAt) > new Date() ? <ScreeningTime value={room.scheduledAt} /> : `${room.online} watching · ${room.capacity} seats`}</span>
         <h3>{room.title}</h3><p>{room.movie.title}</p><small className="room-audience">{room.visibility === "PRIVATE" ? "Invitation only · Private chat + reactions" : "Public theater · Emoji reactions"}</small>
-        <div><span className="muted">Hosted by {room.host.name}</span><span className="join-arrow"><ArrowUpRight size={16} /></span></div>
+        <div><span className="muted">Hosted by {room.host.name}</span><span className="join-arrow">Join Theater <ArrowUpRight size={16} /></span></div>
       </div>
     </Link>)}</div>
     {!rooms.length && <div className="empty-state">

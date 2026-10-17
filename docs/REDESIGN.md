@@ -1,5 +1,8 @@
 # CineChat premium redesign
 
+> Historical baseline report. The current free-theater behavior and verification
+> supersede this snapshot: [FREE-THEATERS.md](FREE-THEATERS.md).
+
 Repository: **GindausD2/Cinechat**. This update builds on V1 commit
 `07cd8f7f15e31cf2cc27b07bfc933bb07a4bbf41` and preserves the existing backend.
 

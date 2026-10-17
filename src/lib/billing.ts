@@ -1,10 +1,11 @@
 import Stripe from "stripe";
 import { AppError } from "./security";
 import { db } from "./db";
-export function billingConfigured() { return process.env.BILLING_ENABLED === "true" && Boolean(process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_") && process.env.STRIPE_PRO_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET); }
+// Retained for legacy data compatibility. Billing cannot be enabled by environment variables.
+export function billingConfigured() { return false; }
 export function stripeClient() {
   if (process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") || process.env.STRIPE_SECRET_KEY?.startsWith("rk_live_")) throw new AppError(503, "Live charges are disabled in CineChat V1.");
-  if (!billingConfigured()) throw new AppError(503, "Billing is not configured. CineChat Free remains available.");
+  if (!billingConfigured()) throw new AppError(503, "CineChat is free. Payments and subscriptions are disabled.");
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 export async function applyPaymentEvent(event: Stripe.Event) {

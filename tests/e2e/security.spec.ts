@@ -52,7 +52,7 @@ test("capacity race, WebSocket permissions, moderation, reports and reminder del
 test("password reset invalidates sessions, tokens are one-time, billing remains disabled and deletion removes data", async ({ page }) => {
   const username = `reset_${Date.now().toString(36)}`; const id = await accountViaApi(page,username); const email = `${username}@example.com`;
   expect((await page.request.post("/api/billing",{headers,data:{action:"checkout"}})).status()).toBe(503);
-  expect((await page.request.post("/api/billing/webhook",{data:{type:"checkout.session.completed"}})).status()).toBe(400);
+  expect((await page.request.post("/api/billing/webhook",{data:{type:"checkout.session.completed"}})).status()).toBe(503);
   let r = await page.request.post("/api/account/email",{headers,data:{action:"request-reset",email}}); expect(r.ok()).toBe(true); const token = await emailToken(email,"Reset"); const password = "A-new-CineChat-password-987";
   r = await page.request.post("/api/account/email",{headers,data:{action:"reset",token,password}}); expect(r.ok()).toBe(true);
   expect((await page.request.get("/api/notifications")).status()).toBe(401);

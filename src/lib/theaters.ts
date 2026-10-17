@@ -7,7 +7,10 @@ export type TheaterScope = "public" | "private" | "all";
 /** Both discovery surfaces use the same membership-filtered metadata query. */
 export async function listTheaters(scope: TheaterScope, userId?: string, upcoming = false) {
   if (scope === "private" && !userId) return [];
-  const membership = { memberships: { some: { userId, status: { in: ["ACTIVE", "LEFT"] as ("ACTIVE" | "LEFT")[] } } } };
+  const membership = { memberships: { some: {
+    userId, status: { in: ["ACTIVE", "LEFT"] as ("ACTIVE" | "LEFT")[] },
+    OR: [{ role: "HOST" as const }, { invitation: { revoked: false, expiresAt: { gt: new Date() } } }]
+  } } };
   const rooms = await db.cinemaRoom.findMany({
     where: {
       endedAt: null,

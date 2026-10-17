@@ -1,5 +1,8 @@
 # CineChat V1 implementation checklist
 
+> Historical baseline report. The current free-theater behavior and verification
+> supersede this snapshot: [FREE-THEATERS.md](FREE-THEATERS.md).
+
 Repository: `https://github.com/GindausD2/Cinechat` (confirmed by owner).
 Baseline: `92b5a61a56d609802af5aa3850fca7a75d128a57`.
 Inspection: the only tracked file is README.md. No existing dependencies, application,

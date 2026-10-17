@@ -5,6 +5,7 @@ import { signupSchema } from "@/lib/validation";
 import { AppError, hashToken, randomToken } from "@/lib/security";
 import { rateLimit } from "@/lib/redis";
 import { mailAvailable, sendMail } from "@/lib/mail";
+import { safeReturnPath } from "@/lib/return-path";
 export const POST = api(async request => {
   const input = signupSchema.parse(await jsonBody(request));
   await rateLimit("register:global", 100, 3600);
@@ -15,9 +16,9 @@ export const POST = api(async request => {
   const user = await db.user.create({ data: {
     email: input.email, name: input.username, passwordHash: await hash(input.password, 12), role: admin ? "ADMIN" : "USER",
     profile: { create: { username: input.username, birthDate: input.birthDate } },
-    subscription: { create: {} },
     tokens: { create: { kind: "verify", tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 86400000) } }
   }});
-  await sendMail(user.email, "Verify your CineChat account", `Welcome to CineChat. Confirm your email: ${process.env.APP_ORIGIN}/verify?token=${token}`);
+  const returnTo = safeReturnPath(input.returnTo);
+  await sendMail(user.email, "Verify your CineChat account", `Welcome to CineChat. Confirm your email: ${process.env.APP_ORIGIN}/verify?token=${token}${returnTo === "/" ? "" : `&returnTo=${encodeURIComponent(returnTo)}`}`);
   return { message: "Account created. Check your email to verify it before signing in." };
 });

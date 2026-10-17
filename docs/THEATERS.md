@@ -1,5 +1,8 @@
 # CineChat public and private theaters
 
+> Historical baseline report. The current free-theater behavior and verification
+> supersede this snapshot: [FREE-THEATERS.md](FREE-THEATERS.md).
+
 Repository: **GindausD2/Cinechat**. This is an incremental update to the existing
 application at `302fb67403b8f8342e8f1ef67dbedac5483954fb`.
 

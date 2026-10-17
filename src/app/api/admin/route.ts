@@ -9,8 +9,8 @@ import { sourceAllowed } from "@/lib/media";
 const safeImage = z.string().max(2048).refine(v => v.startsWith("/art/") || v.startsWith("https://"), "Use a local art asset or HTTPS image.");
 export const GET = api(async () => {
   await requireAdmin();
-  const [users, rooms, messages, reports, pro] = await Promise.all([db.user.count(), db.cinemaRoom.count({ where: { endedAt: null } }), db.chatMessage.count({ where: { deleted: false } }), db.report.count({ where: { status: "OPEN" } }), db.subscription.count({ where: { plan: "PRO", status: { in: ["active", "trialing"] }, currentPeriodEnd: { gt: new Date() } } })]);
-  return { users, rooms, messages, reports, pro };
+  const [users, rooms, messages, reports] = await Promise.all([db.user.count(), db.cinemaRoom.count({ where: { endedAt: null } }), db.chatMessage.count({ where: { deleted: false } }), db.report.count({ where: { status: "OPEN" } })]);
+  return { users, rooms, messages, reports };
 });
 export const POST = api(async request => {
   const admin = await requireAdmin(); await rateLimit(`admin:${admin.id}`, 60, 60);

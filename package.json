@@ -11,6 +11,7 @@
     "start": "next start --hostname 0.0.0.0",
     "start:realtime": "tsx realtime/server.ts",
     "media:setup": "sh scripts/setup-media.sh",
+    "media:hls-fixture": "sh scripts/setup-hls-fixture.sh",
     "media:serve": "tsx scripts/media-server.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

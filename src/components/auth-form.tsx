@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Film } from "lucide-react";
 import { GlassButton } from "./glass";
-export function AuthForm({ mode, google = false, token = "" }: { mode: "login" | "register" | "forgot" | "reset" | "verify"; google?: boolean; token?: string }) {
+export function AuthForm({ mode, google = false, token = "", returnTo = "/" }: { mode: "login" | "register" | "forgot" | "reset" | "verify"; google?: boolean; token?: string; returnTo?: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,10 +18,10 @@ export function AuthForm({ mode, google = false, token = "" }: { mode: "login" |
       if (mode === "login") {
         const result = await signIn("credentials", { email: data.email, password: data.password, redirect: false });
         if (result?.error) throw new Error("Sign-in failed. Check your password and verify your email first.");
-        router.push("/"); router.refresh();
+        router.push(returnTo); router.refresh();
       } else {
         const endpoint = mode === "register" ? "/api/register" : "/api/account/email";
-        const body = mode === "register" ? data : mode === "forgot" ? { action: "request-reset", email: data.email } : { action: mode, token, ...data };
+        const body = mode === "register" ? { ...data, returnTo } : mode === "forgot" ? { action: "request-reset", email: data.email } : { action: mode, token, ...data };
         const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
@@ -39,8 +39,8 @@ export function AuthForm({ mode, google = false, token = "" }: { mode: "login" |
         {message && <p role="status" className={success ? "success-message" : "error-message"}>{message}</p>}
         <GlassButton variant="primary" disabled={busy || success}>{busy ? "One moment…" : { login: "Sign in", register: "Create account", forgot: "Send reset link", reset: "Update password", verify: "Verify email" }[mode]}<ArrowRight size={17} /></GlassButton>
       </form>
-      {mode === "login" && <><Link className="subtle-link" href="/forgot-password">Forgot your password?</Link>{google && <GlassButton onClick={() => signIn("google", { callbackUrl: "/settings" })}>Continue with Google</GlassButton>}<p className="muted">New here? <Link href="/register">Create an account</Link></p><Link className="subtle-link" href="/resend-verification">Resend verification email</Link></>}
-      {mode !== "login" && <Link className="subtle-link" href="/login">Back to sign in</Link>}
+      {mode === "login" && <><Link className="subtle-link" href="/forgot-password">Forgot your password?</Link>{google && <GlassButton onClick={() => signIn("google", { callbackUrl: returnTo === "/" ? "/settings" : returnTo })}>Continue with Google</GlassButton>}<p className="muted">New here? <Link href={`/register?returnTo=${encodeURIComponent(returnTo)}`}>Create an account</Link></p><Link className="subtle-link" href="/resend-verification">Resend verification email</Link></>}
+      {mode !== "login" && <Link className="subtle-link" href={`/login?returnTo=${encodeURIComponent(returnTo)}`}>Back to sign in</Link>}
       {mode === "register" && <small className="muted">By joining, you agree to our <Link href="/legal">community guidelines and privacy terms</Link>. Ages 13 and up.</small>}
     </section></div>;
 }

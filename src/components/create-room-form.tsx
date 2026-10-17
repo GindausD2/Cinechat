@@ -1,14 +1,15 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Lock, Radio, ArrowRight } from "lucide-react";
+import { Lock, Radio, ArrowRight } from "lucide-react";
 import { GlassButton } from "./glass";
-export function CreateRoomForm({ movies, selected, limits }: { movies: { id: string; title: string }[]; selected?: string; limits: { pro: boolean; capacity: number; activeRooms: number; privateRooms: number } }) {
-  const [privacy, setPrivacy] = useState<"PUBLIC" | "PRIVATE" | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false); const router = useRouter();
+import { THEATER_LIMITS } from "@/lib/theater-limits";
+export function CreateRoomForm({ movies, selected, initialType }: { movies: { id: string; title: string }[]; selected?: string; initialType?: "PUBLIC" | "PRIVATE" }) {
+  const [privacy, setPrivacy] = useState<"PUBLIC" | "PRIVATE" | null>(initialType || null), [error, setError] = useState(""), [busy, setBusy] = useState(false); const router = useRouter();
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(""); const data = Object.fromEntries(new FormData(event.currentTarget));
     const body = { ...data, visibility: privacy, capacity: Number(data.capacity), accessCode: data.accessCode || undefined, scheduledAt: data.scheduledAt ? new Date(String(data.scheduledAt)).toISOString() : undefined };
-    try { const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); router.push(`/cinemas/${result.id}`); }
+    try { const response = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); router.push(`/cinemas/${result.id}${privacy === "PRIVATE" ? "?invite=1" : ""}`); }
     catch (e) { setError(e instanceof Error ? e.message : "Unable to create cinema."); } finally { setBusy(false); }
   }
   if (!privacy) return <div className="glass-card create-room-form theater-choice">
@@ -25,12 +26,11 @@ export function CreateRoomForm({ movies, selected, limits }: { movies: { id: str
     <label>About your screening<textarea name="description" placeholder="Set the mood. Tell your guests what to expect." maxLength={500} /></label>
     <label>Tonight’s film<select name="movieId" defaultValue={movies.some(m => m.id === selected) ? selected : movies[0]?.id} required>{movies.map(m => <option value={m.id} key={m.id}>{m.title}</option>)}</select><small>Only films authorized for your age and region are listed.</small></label>
     <div className="form-grid">
-      <label>Seats<select name="capacity" defaultValue="8">{[2,4,8,12,20,50].filter(v => v <= limits.capacity).map(v => <option key={v} value={v}>{v} participants</option>)}</select></label>
+      <label>Seats<select name="capacity" key={privacy} defaultValue={privacy === "PUBLIC" ? "100" : "8"}>{[2,4,8,12,20,50,100,250,500,1000].filter(v => v <= (privacy === "PUBLIC" ? THEATER_LIMITS.publicCapacity : THEATER_LIMITS.privateCapacity)).map(v => <option key={v} value={v}>{v} participants</option>)}</select></label>
       <label>Screening date (optional)<input name="scheduledAt" type="datetime-local" /><small>Leave empty to go live now. Your local time.</small></label>
     </div>
     {privacy === "PRIVATE" && <label>Access code (optional)<input name="accessCode" type="password" minLength={6} maxLength={64} autoComplete="new-password" placeholder="An extra layer for your invitation" /><small>Guests need both the invitation and this code.</small></label>}
-    <label>Theater atmosphere<select name="theme" defaultValue="silver"><option value="silver">CineChat classic</option>{limits.pro && <><option value="blue">Blue screening room</option><option value="midnight">Midnight cinema</option></>}</select><small>{limits.pro ? "A subtle accent for your screening." : "Additional theater atmospheres are included with Pro."}</small></label>
-    <div className="muted text-xs"><Users size={13} className="inline mr-2" />{limits.pro ? "Pro" : "Free"}: {limits.activeRooms} active theaters, {limits.privateRooms} private {limits.privateRooms === 1 ? "screening" : "screenings"}.</div>
+    <label>Theater atmosphere<select name="theme" defaultValue="silver"><option value="silver">CineChat classic</option><option value="blue">Blue screening room</option><option value="midnight">Midnight cinema</option></select><small>A subtle accent for your screening. All atmospheres are free.</small></label>
     {!movies.length && <p role="status" className="muted">No films are currently authorized for your age and region.</p>}
     {error && <p role="alert" className="error-message">{error}</p>}
     <GlassButton variant="primary" disabled={busy || !movies.length}>{busy ? "Preparing your theater…" : "Create theater"}<ArrowRight size={16} /></GlassButton>

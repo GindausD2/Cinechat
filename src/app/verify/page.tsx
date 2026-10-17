@@ -1,2 +1,3 @@
 import { AuthForm } from "@/components/auth-form";
-export default async function Page({ searchParams }: { searchParams: Promise<{ token?: string }> }) { const { token } = await searchParams; return <AuthForm mode="verify" token={token} />; }
+import { safeReturnPath } from "@/lib/return-path";
+export default async function Page({ searchParams }: { searchParams: Promise<{ token?: string; returnTo?: string }> }) { const { token, returnTo } = await searchParams; return <AuthForm mode="verify" token={token} returnTo={safeReturnPath(returnTo)} />; }

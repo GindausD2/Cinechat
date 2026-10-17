@@ -1,15 +1,17 @@
+import { requestRegion } from "@/lib/request-region";
+import { ScreeningTime } from "@/components/screening-time";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Play, Users, Radio, ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { movieSummary } from "@/lib/media";
-import { regionForRequest } from "@/lib/security";
 import { ContinueWatchingCard, MovieFeatureRail, MovieRail } from "@/components/movie-card";
 import { secondsAgo } from "@/lib/server-time";
 import { onlineCount } from "@/lib/events";
 import { backdropFor } from "@/lib/artwork";
 export default async function Page() {
+  const viewerRegion = await requestRegion();
   const user = await currentUser();
   const movies = await db.movie.findMany({
     include: { sources: true, _count: { select: {
@@ -18,8 +20,8 @@ export default async function Page() {
       rooms: { where: { createdAt: { gte: secondsAgo(604800) } } }
     } } }, take: 30, orderBy: { createdAt: "desc" }
   });
-  const region = regionForRequest(); const summaries = movies.map(v => movieSummary(v, region)); const hero = summaries.find(v => v.id === "big-buck-bunny") || summaries[0];
-  const publicRooms = await db.cinemaRoom.findMany({ where: { visibility: "PUBLIC", endedAt: null, scheduledAt: null }, include: { movie: true, host: { select: { name: true } }, _count: { select: { memberships: { where: { status: "ACTIVE", lastSeenAt: { gte: secondsAgo(60) } } } } } }, take: 3, orderBy: { createdAt: "desc" } });
+  const region = viewerRegion; const summaries = movies.map(v => movieSummary(v, region)); const hero = summaries.find(v => v.id === "big-buck-bunny") || summaries[0];
+  const publicRooms = await db.cinemaRoom.findMany({ where: { visibility: "PUBLIC", endedAt: null, OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] }, include: { movie: true, host: { select: { name: true } }, _count: { select: { memberships: { where: { status: "ACTIVE", lastSeenAt: { gte: secondsAgo(60) } } } } } }, take: 3, orderBy: { createdAt: "desc" } });
   const liveCounts = await Promise.all(publicRooms.map(room => onlineCount(room.id)));
   const upcoming = await db.cinemaRoom.findMany({ where: { visibility: "PUBLIC", endedAt: null, scheduledAt: { gt: new Date() } }, include: { movie: true }, take: 3, orderBy: { scheduledAt: "asc" } });
   const clubs = await db.movieClub.findMany({ include: { _count: { select: { memberships: true } } }, take: 3, orderBy: { memberships: { _count: "desc" } } });
@@ -49,14 +51,15 @@ export default async function Page() {
       <nav className="genre-links" aria-label="Browse by genre">{["Animation", "Adventure", "Comedy", "Drama", "Fantasy", "Sci-Fi"].map(genre => <Link key={genre} href={`/movies?genre=${encodeURIComponent(genre)}`}>{genre}</Link>)}</nav>
       {history.length > 0 && <section aria-labelledby="continue-title"><div className="section-header"><h2 id="continue-title">Continue watching</h2><Link href="/watchlist">My List <ArrowRight size={14} /></Link></div><div className="continue-rail">{history.map(item => <ContinueWatchingCard key={item.movieId} movie={movieSummary(item.movie, region)} position={item.position} />)}</div></section>}
       <section aria-labelledby="popular-title"><div className="section-header"><h2 id="popular-title">Popular this week</h2><Link href="/movies">Browse movies <ArrowRight size={14} /></Link></div><MovieFeatureRail movies={[...summaries].sort((a,b) => (b._count?.history || 0) - (a._count?.history || 0))} /></section>
-      <section aria-labelledby="live-title"><div className="section-header"><h2 id="live-title">Live Cinema Rooms</h2><Link href="/cinemas">Explore cinemas <ArrowRight size={14} /></Link></div><div className="room-grid">
+      <section aria-labelledby="live-title"><div className="section-header"><h2 id="live-title">Public Theater</h2><Link href="/cinemas">Explore cinemas <ArrowRight size={14} /></Link></div><div className="room-grid">
         {publicRooms.map((room, index) => <Link href={`/cinemas/${room.id}`} className="room-card" key={room.id}><div className="room-card-backdrop" style={{ backgroundImage: `url('${backdropFor(room.movie)}')` }} /><div className="room-card-content"><span className="pill"><span className="live-dot" />LIVE · {liveCounts[index]} watching</span><h3>{room.title}</h3><p>{room.movie.title}</p><div><span className="muted">Hosted by {room.host.name}</span><ArrowUpRight size={17} /></div></div></Link>)}
         {!publicRooms.length && <div className="cinema-empty"><Radio size={24} /><div><h3>A good movie deserves good company.</h3><p>No public screenings are live. Invite your people and start one.</p></div><Link href="/cinemas/new" className="button button-glass">Create a cinema <ArrowUpRight size={15} /></Link></div>}
       </div></section>
+      <section className="private-theater-intro" aria-labelledby="home-private-theater"><div><span className="eyebrow">A SCREENING FOR YOUR FRIENDS</span><h2 id="home-private-theater">Private Theater</h2><p className="muted">A film, your friends, and a conversation just for you. No subscriptions or payments.</p></div><Link href="/cinemas/new?type=private" className="button button-primary">Create Private Theater</Link></section>
       <section className="editorial-banner" aria-labelledby="community-title"><div className="editorial-copy"><span className="eyebrow">THE CONVERSATION CONTINUES</span><h2 id="community-title">Find your people.<br />Share your kind of cinema.</h2><p>From animation enthusiasts to late-night film lovers, there’s a conversation waiting for you.</p><Link href="/clubs" className="button button-glass">Explore movie clubs <ArrowUpRight size={15} /></Link></div><div className="editorial-image"><Image src="/art/films/elephants-still.webp" alt="Emo and Proog in Elephants Dream" fill sizes="(max-width: 700px) 100vw, 45vw" /><small>Elephants Dream · Blender Foundation · CC BY 2.5</small></div></section>
       <section aria-labelledby="recommended-title"><div className="section-header"><h2 id="recommended-title">Recommended for you</h2><Link href="/movies?genre=Adventure">Explore more <ArrowRight size={14} /></Link></div><MovieRail movies={recommendations} /></section>
       <div className="home-columns">
-        <section aria-labelledby="upcoming-title"><div className="section-header"><h2 id="upcoming-title">Upcoming screenings</h2><Link href="/cinemas?upcoming=true">View all <ArrowRight size={14} /></Link></div>{upcoming.length ? upcoming.map(room => <Link href={`/cinemas/${room.id}`} className="list-row" key={room.id}><div><h3>{room.title}</h3><span className="muted">{room.movie.title}</span></div><span className="schedule-date">{room.scheduledAt?.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</span></Link>) : <div className="section-empty"><h3>Make a night of it.</h3><p>Schedule a screening and give everyone something to look forward to.</p><Link href="/cinemas/new">Plan a movie night →</Link></div>}</section>
+        <section aria-labelledby="upcoming-title"><div className="section-header"><h2 id="upcoming-title">Upcoming screenings</h2><Link href="/cinemas?upcoming=true">View all <ArrowRight size={14} /></Link></div>{upcoming.length ? upcoming.map(room => <Link href={`/cinemas/${room.id}`} className="list-row" key={room.id}><div><h3>{room.title}</h3><span className="muted">{room.movie.title}</span></div><span className="schedule-date">{room.scheduledAt && <ScreeningTime value={room.scheduledAt.toISOString()} />}</span></Link>) : <div className="section-empty"><h3>Make a night of it.</h3><p>Schedule a screening and give everyone something to look forward to.</p><Link href="/cinemas/new">Plan a movie night →</Link></div>}</section>
         <section aria-labelledby="clubs-title"><div className="section-header"><h2 id="clubs-title">Popular movie clubs</h2><Link href="/clubs">View all <ArrowRight size={14} /></Link></div>{clubs.length ? clubs.map(club => <Link href={`/clubs/${club.id}`} className="list-row" key={club.id}><div><h3>{club.name}</h3><span className="muted">{club.genre}</span></div><span className="muted">{club._count.memberships} members</span></Link>) : <div className="section-empty"><h3>A place for your favorite films.</h3><p>Join a club or start a conversation around the movies you love.</p><Link href="/clubs">Discover clubs →</Link></div>}</section>
       </div>
       <section aria-labelledby="recent-title"><div className="section-header"><h2 id="recent-title">Recently added</h2><Link href="/movies">View all <ArrowRight size={14} /></Link></div><MovieRail movies={summaries} /></section>

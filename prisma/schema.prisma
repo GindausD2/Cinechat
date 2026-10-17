@@ -131,6 +131,7 @@ model RealtimeTicket {
   userId      String
   authVersion Int
   expiresAt   DateTime
+  region      String   @default("US") @db.VarChar(2)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
@@ -255,12 +256,15 @@ model RoomMembership {
   mutedUntil DateTime?
   joinedAt   DateTime         @default(now())
   lastSeenAt DateTime         @default(now())
+  invitationId String?
+  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
   room       CinemaRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId])
   @@index([roomId, status])
   @@index([userId, status])
+  @@index([invitationId])
 }
 
 model Invitation {
@@ -274,6 +278,7 @@ model Invitation {
   revoked     Boolean    @default(false)
   room        CinemaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  memberships RoomMembership[]
 
   @@index([roomId, expiresAt])
 }

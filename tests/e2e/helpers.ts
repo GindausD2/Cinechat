@@ -10,8 +10,12 @@ export async function accountViaApi(page: Page, username: string) {
   await page.getByLabel("Email address").fill(`${username}@example.com`); await page.getByLabel("Password", { exact: true }).fill(testPassword); await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL("/");
   const profile = await page.request.get("/api/auth/session"); return (await profile.json()).user.id as string;
 }
+export async function emailLink(email: string, subject: string) {
+  const directory = join(process.cwd(), ".data/outbox"); const files = await readdir(directory); let link = "";
+  for (const f of files.sort()) { const m = JSON.parse(await readFile(join(directory, f), "utf8")); if (m.to === email && m.subject.includes(subject)) link = m.text.match(/http[^\s]+/)?.[0] || ""; }
+  expect(link).toMatch(/^http:\/\/localhost:3000\//); return link;
+}
 export async function emailToken(email: string, subject: string) {
-  const directory = join(process.cwd(), ".data/outbox"); const files = await readdir(directory); let token = "";
-  for (const f of files.sort()) { const m = JSON.parse(await readFile(join(directory, f), "utf8")); if (m.to === email && m.subject.includes(subject)) token = m.text.match(/token=([A-Za-z0-9_-]+)/)?.[1] || ""; }
+  const token = new URL(await emailLink(email, subject)).searchParams.get("token") || "";
   expect(token.length).toBeGreaterThan(32); return token;
 }

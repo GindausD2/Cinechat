@@ -1,5 +1,8 @@
 # CineChat V1 delivery
 
+> Historical baseline report. The current free-theater behavior and verification
+> supersede this snapshot: [FREE-THEATERS.md](FREE-THEATERS.md).
+
 This records the original foundation delivery. The subsequent premium interface,
 expanded production browser verification, and current design captures are in
 [REDESIGN.md](REDESIGN.md).

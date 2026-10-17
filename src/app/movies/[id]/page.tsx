@@ -1,3 +1,4 @@
+import { requestRegion } from "@/lib/request-region";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,13 +6,13 @@ import { Play, Users, ArrowLeft, ExternalLink, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { movieSummary } from "@/lib/media";
-import { regionForRequest } from "@/lib/security";
 import { backdropFor, filmAttribution } from "@/lib/artwork";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { MovieRail } from "@/components/movie-card";
 import { onlineCount } from "@/lib/events";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const viewerRegion = await requestRegion();
   const { id } = await params;
   const movie = await db.movie.findUnique({ where: { id }, include: { sources: true } });
   if (!movie) notFound();
@@ -23,7 +24,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     // continue to be available to their authorized members in the cinema lobby.
     db.cinemaRoom.findMany({ where: { movieId: id, visibility: "PUBLIC", endedAt: null }, include: { host: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 3 })
   ]);
-  const region = regionForRequest();
+  const region = viewerRegion;
   const data = movieSummary(movie, region);
   const counts = await Promise.all(parties.map(room => onlineCount(room.id)));
   const backdrop = backdropFor(movie);

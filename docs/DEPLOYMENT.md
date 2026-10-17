@@ -15,9 +15,21 @@ Use HTTPS for both service origins and WSS for WebSocket transport. The web
 origin's `NEXT_PUBLIC_WS_URL` must point to the public HTTPS realtime origin at
 build time. The Socket.IO server upgrades to WebSocket on `/socket.io/`; route that
 path to the realtime service and retain upgrade headers. Its only allowed browser
-Origin is `APP_ORIGIN`. Use graceful SIGTERM and a >=60-second load-balancer idle
-timeout. Redis adapter/pubsub handles events across workers; PostgreSQL owns
-playback versions, memberships and moderation. Presence expires if a worker dies.
+Origin is `APP_ORIGIN`. Redact bearer tokens in `/invite/` paths from proxy logs. Use graceful SIGTERM and a >=60-second load-balancer idle
+timeout. Redis adapter/pubsub handles events across workers. WebSocket-only transport
+needs no sticky polling sessions; all replicas must share Redis, database, origins
+and `REALTIME_SECRET`. Route upgrades across workers and drain them gracefully.
+PostgreSQL owns playback versions, memberships and moderation. Per-socket leases
+expire after 45 seconds if a worker dies; unique users are
+counted across their tabs and workers. Authorization/playback heartbeats run every
+10 seconds, with fresh batched database checks per active local room.
+
+`DATABASE_POOL_SIZE` defaults to 10 per process unless `DATABASE_URL` already sets
+`connection_limit`. Budget the total across web/realtime replicas and migrations.
+The included browser test exercises 100 synthetic viewers across two workers and
+two concurrent rooms; perform workload/region/CDN testing before promising larger
+production audiences. Operational limits are 1,000 public seats, 50 private seats,
+and 20 active theaters per creator, equal for all accounts.
 
 ```sh
 docker build \
@@ -49,8 +61,12 @@ Use `.env.example` as a key reference. Required production configuration:
   Disable `EMAIL_DEV_OUTBOX`. Registration refuses to run without real mail in
   production. Configure Google callback at `/api/auth/callback/google` if using
   `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
-- `REGION_DEFAULT`: trusted deployment launch region. It drives license availability.
-  For global delivery, use a trusted regional gateway and region-aware deployments.
+- `REGION_DEFAULT`: fallback launch region for license availability.
+- Optional `TRUSTED_COUNTRY_HEADER`: country header from your trusted edge, for
+  example a verified platform country header. Configure only when the proxy
+  **overwrites** it and direct origin access is blocked. Two-letter country values
+  are validated and bound to the WebSocket ticket; the browser cannot select its
+  region through Socket.IO. Leaving this unset ignores all client country headers.
 - `MEDIA_ALLOWED_HOSTS`: explicit approved CDN hostnames at build and runtime.
   Disable `ALLOW_LOCAL_MEDIA` and remove localhost for launch.
 - `ADMIN_EMAILS`: bootstrap administrator emails before account registration.
@@ -87,25 +103,27 @@ scheduler; deduplication makes concurrent scheduler/service runs safe. Alerts ne
 reveal private rooms to unauthorized accounts. Notification delivery is in-app;
 screening-reminder email/push delivery is a future extension.
 
-## Stripe test billing
+## Free access and legacy data
 
-Leave `BILLING_ENABLED=false` until configuration is reviewed. To test, configure
-`sk_test_…`, `STRIPE_PRO_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET`, and enable billing.
-Configure a recurring **test** price and Stripe's customer portal. Forward signed
-events to `/api/billing/webhook`: `checkout.session.completed`,
-`customer.subscription.created/updated/deleted`, `invoice.paid`,
-`invoice.payment_failed`. The webhook reads raw body and verifies Stripe signatures;
-live events and live keys are rejected. Duplicate event IDs are ignored. Subscription
-state is retrieved from the provider and matched to the stored customer and price.
+No checkout, billing portal, subscription, or paid entitlement is active. Both
+billing POST routes return 503 and `billingConfigured()` always returns false,
+even if legacy flags/keys remain in the environment. No payment secrets are needed.
+Archived handlers live under `src/lib/legacy/`; legacy tables are preserved. New
+registrations do not create subscriptions and old plan values grant no privileges.
 
-Plan upgrades require verified events. Returning from checkout alone does nothing.
-Billing history is based on verified invoice events. Account deletion requires
-subscription cancellation and completion of its active period before removing
-account data. Payment-provider records follow the operator/provider retention
-policy and are not represented as erased from Stripe by deleting local rows.
+Apply migration `20261017000100_free_global_theaters` before rolling out **both**
+web and realtime workers. It widens public capacity, binds a membership to the
+invitation used for access, and stores ticket regions. Existing private guest
+memberships have no provable invitation grant and must redeem a new valid link;
+hosts retain access. Revocation or expiry removes grant-based access, including
+rejoin and private message reads. Deploy both services together so older workers
+cannot continue using old authorization rules. Back up before the release.
 
-Live billing needs an explicitly approved separate change, selected supported launch
-countries, published pricing/refund/tax terms and an actual provider smoke test.
+Scheduled public premieres start from their server UTC timestamp. Viewers see local
+browser timezone labels. Missed premieres past the film runtime are ended rather
+than restarted. A host playback action supersedes automatic scheduling. Completed public films close on the server even when no host browser remains.
+Private rooms remain host-controlled. A host network drop leaves the shared timeline
+running; explicitly leaving a private theater pauses it.
 
 ## Operations and release checks
 
@@ -117,10 +135,10 @@ tokens, notifications, reactions and operational logs according to your policies
 
 CI runs migration, seed, unit/browser tests and a production build. Before launch,
 run all checks with configured providers, perform a two-browser session on HTTPS,
-test invitation rejection, host moderation, reconnect and region restrictions, and
-validate payment signature/replay handling with Stripe's real test events.
+test invitation rejection, host moderation, reconnect, region restrictions and
+CDN/HLS recovery using the actual launch sources.
 
 The operator must publish actual legal identity, public copyright/support contact,
 retention terms, subprocessors, age/community procedures and jurisdiction-specific
-privacy/billing notices. The local legal page already describes application behavior;
+privacy notices. The local legal page already describes application behavior;
 it explicitly marks operator-specific launch information as pending.

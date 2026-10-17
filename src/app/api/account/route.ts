@@ -24,7 +24,6 @@ export const DELETE = api(async request => {
   if (!user.passwordHash) throw new AppError(409, "Set a password using password reset before deleting your account.");
   await rateLimit(`delete:${user.id}`, 5, 900);
   if (!password || !await compare(password, user.passwordHash)) throw new AppError(403, "Incorrect password.");
-  if (user.subscription?.stripeSubscriptionId && ["active", "trialing", "past_due"].includes(user.subscription.status)) throw new AppError(409, "Cancel your subscription before deleting your account.");
   await db.user.delete({ where: { id: user.id } });
   return { deleted: true };
 });
