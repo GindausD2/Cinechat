@@ -38,10 +38,12 @@ jobs:
           node-version: 24
           cache: npm
       - name: Generate ephemeral test secrets
-        run: node -e 'const c=require("crypto");const fs=require("fs");fs.appendFileSync(process.env.GITHUB_ENV,"AUTH_SECRET="+c.randomBytes(48).toString("hex")+"\nREALTIME_SECRET="+c.randomBytes(48).toString("hex")+"\n");'
+        run: node -e 'const c=require("crypto");const fs=require("fs");const authSecret=c.randomBytes(48).toString("hex");const realtimeSecret=c.randomBytes(48).toString("hex");console.log("::add-mask::"+authSecret);console.log("::add-mask::"+realtimeSecret);fs.appendFileSync(process.env.GITHUB_ENV,"AUTH_SECRET="+authSecret+"\nREALTIME_SECRET="+realtimeSecret+"\n");'
       - run: npm ci
       - run: npm run db:generate && npm run db:migrate && npm run db:seed
       - run: npm run media:setup
+      - name: Install HLS fixture encoder
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm run media:hls-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run lint && npm run typecheck && npm test && npm run build

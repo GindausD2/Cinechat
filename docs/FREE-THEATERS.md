@@ -154,7 +154,8 @@ npm audit --omit=dev
 Stop dev servers before production Playwright; it starts web 3000, WebSocket
 workers 3001/3003, media 3002 and loopback test SMTP 2525/2526. Use a disposable
 local/test database, never a production database. The HLS fixture is an attributed
-20-second Big Buck Bunny excerpt in ignored `.data/media/hls/`.
+20-second Big Buck Bunny excerpt in ignored `.data/media/hls/`. CI installs
+FFmpeg explicitly and masks its temporary test secrets before exporting them.
 
 ## Required configuration and launch dependencies
 
