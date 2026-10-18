@@ -11,14 +11,20 @@ export function sourceAllowed(source: MediaSource, region: string, now = new Dat
     return (url.protocol === "https:" || (local && url.protocol === "http:")) && hosts.includes(url.hostname) && !url.username && !url.password;
   } catch { return false; }
 }
-export function playableSource(movie: Movie & { sources: MediaSource[] }, region: string, age: number) {
+export type Subtitle = { language: string; label: string; url: string };
+export function subtitleTracksFor(source: MediaSource & { subtitles?: Subtitle[] }): Subtitle[] {
+  const tracks = [...(source.subtitles || [])];
+  if (source.subtitleUrl && !tracks.some(track => track.language === "en")) tracks.unshift({ language: "en", label: "English", url: source.subtitleUrl });
+  return tracks.filter(track => sourceAllowed({ ...source, url: track.url }, source.regions[0] || process.env.REGION_DEFAULT || "US"));
+}
+export function playableSource<T extends MediaSource>(movie: Movie & { sources: T[] }, region: string, age: number): T {
   if (age < movie.minAge) throw new AppError(403, "Complete your birth date in account settings, or choose an age-appropriate film.");
   const source = movie.sources.find(s => sourceAllowed(s, region));
   if (!source) throw new AppError(451, "This film is not available to play in your region. You can still explore its details.");
   return source;
 }
-export function movieSummary<T extends Movie & { sources: MediaSource[] }>(movie: T, region: string) {
+export function movieSummary<T extends Movie & { sources: (MediaSource & { subtitles?: Subtitle[] })[] }>(movie: T, region: string) {
   const { sources, ...metadata } = movie;
   const source = sources.find(s => sourceAllowed(s, region));
-  return { ...metadata, available: Boolean(source), license: source?.license || null };
+  return { ...metadata, available: Boolean(source), license: source?.license || null, subtitles: source ? subtitleTracksFor(source).map(({ language, label }) => ({ language, label })) : [] };
 }

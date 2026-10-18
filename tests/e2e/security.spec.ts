@@ -14,7 +14,7 @@ async function socketFor(ticket: string) {
 }
 test("capacity race, WebSocket permissions, moderation, reports and reminder delivery", async ({ browser }) => {
   const suffix = Date.now().toString(36); const contexts = await Promise.all([1,2,3].map(() => browser.newContext())); const pages = await Promise.all(contexts.map(c => c.newPage()));
-  const [a,b,c] = pages; const aId = await accountViaApi(a,`sechost_${suffix}`); const bId = await accountViaApi(b,`secguest_${suffix}`); await accountViaApi(c,`secextra_${suffix}`);
+  const [a,b,c] = pages; const aId = await accountViaApi(a,`sechost_${suffix}`, { screeningAdmin: true }); const bId = await accountViaApi(b,`secguest_${suffix}`); await accountViaApi(c,`secextra_${suffix}`);
   const created = await a.request.post("/api/rooms", { headers, data: { title: "Capacity test screening", movieId: "big-buck-bunny", visibility: "PUBLIC", capacity: 2 } }); expect(created.ok()).toBe(true); const roomId = (await created.json()).id;
   const joins = await Promise.all([b,c].map(p => p.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "join" } })));
   expect(joins.filter(r => r.ok())).toHaveLength(1); expect(joins.filter(r => r.status()===409)).toHaveLength(1);

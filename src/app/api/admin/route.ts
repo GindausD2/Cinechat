@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { AppError } from "@/lib/security";
 import { rateLimit } from "@/lib/redis";
 import { publishRoomEvent } from "@/lib/events";
+import { subtitleTrackSchema } from "@/lib/validation";
 import { sourceAllowed } from "@/lib/media";
 const safeImage = z.string().max(2048).refine(v => v.startsWith("/art/") || v.startsWith("https://"), "Use a local art asset or HTTPS image.");
 export const GET = api(async () => {
@@ -20,7 +21,7 @@ export const POST = api(async request => {
     z.object({ action: z.literal("review-report"), reportId: z.string(), status: z.enum(["RESOLVED", "DISMISSED"]), deleteMessage: z.boolean().default(false), reason: z.string().min(3).max(500) }),
     z.object({ action: z.literal("disable-source"), sourceId: z.string(), reason: z.string().min(3).max(500) }),
     z.object({ action: z.literal("create-movie"), id: z.string().regex(/^[a-z0-9-]{3,80}$/), title: z.string().trim().min(1).max(100), synopsis: z.string().min(10).max(5000), year: z.number().int().min(1888).max(2200), durationSeconds: z.number().int().min(1).max(72000), genres: z.array(z.string().max(30)).min(1).max(8), cast: z.array(z.string().max(100)).max(30), poster: safeImage, backdrop: safeImage, metadataSource: z.url().startsWith("https://"), minAge: z.number().int().min(13).max(21) }),
-    z.object({ action: z.literal("save-source"), id: z.string().max(128).optional(), movieId: z.string().max(80), url: z.url().max(2048), format: z.enum(["mp4", "hls"]), subtitleUrl: z.url().max(2048).nullable().default(null), license: z.string().min(3).max(200), rightsUrl: z.url().startsWith("https://"), attribution: z.string().min(10).max(2000), regions: z.array(z.string().regex(/^[A-Z]{2}$/)).max(250), validFrom: z.iso.datetime(), validUntil: z.iso.datetime().nullable(), authorized: z.boolean(), enabled: z.boolean(), rightsConfirmed: z.boolean() })
+    z.object({ action: z.literal("save-source"), id: z.string().max(128).optional(), movieId: z.string().max(80), url: z.url().max(2048), format: z.enum(["mp4", "hls"]), subtitleUrl: z.url().max(2048).nullable().default(null), subtitles: z.array(subtitleTrackSchema).max(20).optional(), license: z.string().min(3).max(200), rightsUrl: z.url().startsWith("https://"), attribution: z.string().min(10).max(2000), regions: z.array(z.string().regex(/^[A-Z]{2}$/)).max(250), validFrom: z.iso.datetime(), validUntil: z.iso.datetime().nullable(), authorized: z.boolean(), enabled: z.boolean(), rightsConfirmed: z.boolean() })
   ]).parse(await jsonBody(request));
   if (input.action === "suspend-user") {
     if (input.userId === admin.id) throw new AppError(400, "You cannot suspend your own account.");
@@ -45,8 +46,18 @@ export const POST = api(async request => {
     const source = { ...data, id: input.id || "new" };
     if (!sourceAllowed({ ...source, enabled: true, authorized: true, validFrom: new Date(0), validUntil: null, regions: [] }, "US")) throw new AppError(400, "Media delivery host must be explicitly allowed in server configuration.");
     if (input.subtitleUrl && !sourceAllowed({ ...source, url: input.subtitleUrl, enabled: true, authorized: true, validFrom: new Date(0), validUntil: null, regions: [] }, "US")) throw new AppError(400, "Subtitle host is not allowed.");
-    const row = input.id ? await db.mediaSource.update({ where: { id: input.id }, data }) : await db.mediaSource.create({ data });
-    await db.moderationAction.create({ data: { actorId: admin.id, targetId: row.id, action: "save-source-rights", reason: `License: ${input.license}. Evidence: ${input.rightsUrl}` } });
+    if (input.subtitles) {
+      if (new Set(input.subtitles.map(track => track.language)).size !== input.subtitles.length) throw new AppError(400, "Use one subtitle track per language.");
+      for (const track of input.subtitles) if (!sourceAllowed({ ...source, url: track.url, enabled: true, authorized: true, validFrom: new Date(0), validUntil: null, regions: [] }, "US")) throw new AppError(400, "Subtitle host is not allowed.");
+    }
+    await db.$transaction(async tx => {
+      const row = input.id ? await tx.mediaSource.update({ where: { id: input.id }, data }) : await tx.mediaSource.create({ data });
+      if (input.subtitles !== undefined) {
+        await tx.subtitleTrack.deleteMany({ where: { mediaSourceId: row.id } });
+        if (input.subtitles.length) await tx.subtitleTrack.createMany({ data: input.subtitles.map(track => ({ ...track, mediaSourceId: row.id })) });
+      }
+      await tx.moderationAction.create({ data: { actorId: admin.id, targetId: row.id, action: "save-source-rights", reason: `License: ${input.license}. Evidence: ${input.rightsUrl}. Subtitle assets included in rights confirmation.` } });
+    });
   }
   return { saved: true };
 });

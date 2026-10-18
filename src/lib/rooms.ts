@@ -3,11 +3,13 @@ import { hash, compare } from "bcryptjs";
 import { db } from "./db";
 import { AppError, ageAt, hashToken, randomToken, regionForRequest } from "./security";
 import { createRoomSchema } from "./validation";
-import { playableSource } from "./media";
+import { playableSource, subtitleTracksFor } from "./media";
 import { publishRoomEvent } from "./events";
 import { currentPosition, playbackSnapshot } from "./playback";
 import { THEATER_LIMITS } from "./theater-limits";
 import { validInvitationGrant } from "./invitation-access";
+import { canManageTheater } from "./theater-policy";
+import { hasPublicSeat, seatLeaseCutoff } from "./seat-lease";
 type Viewer = User & { profile: Profile | null };
 export async function serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -18,6 +20,7 @@ export async function serializable<T>(work: (tx: Prisma.TransactionClient) => Pr
 }
 export async function createRoom(user: Viewer, raw: unknown, region = regionForRequest()) {
   const input = createRoomSchema.parse(raw); const limits = THEATER_LIMITS;
+  if (input.visibility === "PUBLIC" && user.role !== "ADMIN") throw new AppError(403, "Only administrators can create public screenings. Create a private theater to watch with friends.");
   if (input.scheduledAt && (new Date(input.scheduledAt) <= new Date() || new Date(input.scheduledAt).getTime() > Date.now() + 31536000000)) throw new AppError(400, "Choose a screening date in the next year.");
   const codeHash = input.accessCode ? await hash(input.accessCode, 12) : null;
   return serializable(async tx => {
@@ -27,23 +30,26 @@ export async function createRoom(user: Viewer, raw: unknown, region = regionForR
     const active = await tx.cinemaRoom.count({ where: { hostId: user.id, endedAt: null } });
     const privateCount = await tx.cinemaRoom.count({ where: { hostId: user.id, visibility: "PRIVATE", endedAt: null } });
     if (active >= limits.activeRooms || (input.visibility === "PRIVATE" && privateCount >= limits.privateRooms)) throw new AppError(403, "Your active cinema limit is reached. End an existing screening to create another.");
-    return tx.cinemaRoom.create({ data: { title: input.title, description: input.description, visibility: input.visibility, movieId: input.movieId, hostId: user.id, capacity: input.capacity, accessCodeHash: codeHash, scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null, theme: input.theme, memberships: { create: { userId: user.id, role: "HOST" } } }, select: { id: true } });
+    const room = await tx.cinemaRoom.create({ data: { title: input.title, description: input.description, visibility: input.visibility, movieId: input.movieId, hostId: user.id, capacity: input.capacity, accessCodeHash: codeHash, scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null, theme: input.theme, memberships: { create: { userId: user.id, role: "HOST" } } }, select: { id: true } });
+    if (input.visibility === "PUBLIC") await tx.moderationAction.create({ data: { actorId: user.id, targetId: room.id, action: "screening:create", reason: input.scheduledAt ? `Scheduled for ${input.scheduledAt}` : "Public screening created" } });
+    return room;
   });
 }
 export async function roomAccess(roomId: string, userId: string) {
-  const room = await db.cinemaRoom.findUnique({ where: { id: roomId }, include: { movie: { include: { sources: true } } } });
+  const room = await db.cinemaRoom.findUnique({ where: { id: roomId }, include: { movie: { include: { sources: { include: { subtitles: true } } } } } });
   if (!room || room.endedAt) throw new AppError(404, "This screening has ended or is unavailable.");
   const membership = await db.roomMembership.findUnique({ where: { roomId_userId: { roomId, userId } }, include: { invitation: true } });
   if (membership?.status !== "ACTIVE") throw new AppError(room.visibility === "PRIVATE" ? 404 : 403, "Join this cinema to continue.");
+  if (room.visibility === "PUBLIC" && !hasPublicSeat(membership.lastSeenAt)) throw new AppError(403, "Your seat reservation expired. Rejoin this public screening.");
   if (room.visibility === "PRIVATE" && room.hostId !== userId && (!validInvitationGrant(membership.invitation) || membership.invitation?.roomId !== roomId)) throw new AppError(404, "Your invitation expired or was revoked. Ask the host for a new link.");
   if (await db.block.findFirst({ where: { OR: [{ blockerId: room.hostId, blockedId: userId }, { blockerId: userId, blockedId: room.hostId }] } })) throw new AppError(403, "This cinema is unavailable.");
   return { room, membership };
 }
 export async function joinRoom(roomId: string, user: Viewer, invitationToken?: string, accessCode?: string, region = regionForRequest()) {
-  const now = new Date();
   const result = await db.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "CinemaRoom" WHERE id = ${roomId} FOR UPDATE`;
-    const room = await tx.cinemaRoom.findUnique({ where: { id: roomId }, include: { movie: { include: { sources: true } } } });
+    const now = new Date();
+    const room = await tx.cinemaRoom.findUnique({ where: { id: roomId }, include: { movie: { include: { sources: { include: { subtitles: true } } } } } });
     if (!room || room.endedAt) throw new AppError(404, "Screening unavailable.");
     const existing = await tx.roomMembership.findUnique({ where: { roomId_userId: { roomId, userId: user.id } }, include: { invitation: true } });
     if (existing?.status === "BANNED") throw new AppError(403, "You have been removed from this cinema.");
@@ -51,7 +57,7 @@ export async function joinRoom(roomId: string, user: Viewer, invitationToken?: s
     playableSource(room.movie, region, ageAt(user.profile?.birthDate || null));
     const host = room.hostId === user.id;
     const grantValid = validInvitationGrant(existing?.invitation || null, now.getTime()) && existing?.invitation?.roomId === roomId;
-    if (existing?.status === "ACTIVE" && (room.visibility === "PUBLIC" || host || grantValid)) return { id: room.id };
+    if (existing?.status === "ACTIVE" && (room.visibility === "PUBLIC" ? hasPublicSeat(existing.lastSeenAt, now.getTime()) : host || grantValid)) return { id: room.id, changed: false };
     let invitationId = existing?.invitationId || null;
     if (!host && room.visibility === "PRIVATE" && !grantValid) {
       if (!invitationToken) throw new AppError(404, "A valid invitation is required.");
@@ -61,16 +67,17 @@ export async function joinRoom(roomId: string, user: Viewer, invitationToken?: s
       await tx.invitation.update({ where: { id: invitation.id }, data: { uses: { increment: 1 } } });
       invitationId = invitation.id;
     }
-    const grantFilter = room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: now } } }] } : {};
+    const grantFilter = room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: now } } }] } : { lastSeenAt: { gt: seatLeaseCutoff(now.getTime()) } };
     if (await tx.roomMembership.count({ where: { roomId, status: "ACTIVE", ...grantFilter } }) >= room.capacity) throw new AppError(409, "This cinema is full.");
     await tx.roomMembership.upsert({ where: { roomId_userId: { roomId, userId: user.id } }, create: { roomId, userId: user.id, invitationId, role: host ? "HOST" : "MEMBER" }, update: { status: "ACTIVE", invitationId, lastSeenAt: now } });
-    return { id: room.id };
+    return { id: room.id, changed: true };
   }, { isolationLevel: "ReadCommitted", maxWait: 10000, timeout: 15000 });
-  await publishRoomEvent({ roomId, type: "refresh" });
-  return result;
+  if (result.changed) await publishRoomEvent({ roomId, type: "refresh" });
+  return { id: result.id };
 }
 export async function createInvitation(roomId: string, userId: string, requestedUses?: number, expiryHours = 24) {
   const { room } = await roomAccess(roomId, userId);
+  if (room.visibility !== "PRIVATE") throw new AppError(403, "Invitations are available only for private theaters.");
   if (room.hostId !== userId) throw new AppError(403, "Only the host can invite participants.");
   const maxUses = requestedUses ?? Math.max(1, room.capacity - 1);
   if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > room.capacity) throw new AppError(400, "Invite uses cannot exceed room capacity.");
@@ -94,8 +101,8 @@ export async function roomSnapshot(roomId: string, user: Viewer, region = region
   const source = playableSource(room.movie, region, ageAt(user.profile?.birthDate || null));
   const blocks = await db.block.findMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
   const blockedIds = blocks.map(b => b.blockerId === user.id ? b.blockedId : b.blockerId);
-  const participants = await db.roomMembership.findMany({ where: { roomId, status: "ACTIVE", userId: { notIn: blockedIds }, ...(room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: new Date() } } }] } : {}) }, select: { userId: true, role: true, mutedUntil: true, user: { select: { name: true, image: true, profile: { select: { username: true } } } } }, take: room.visibility === "PUBLIC" ? 100 : 50 });
+  const participants = await db.roomMembership.findMany({ where: { roomId, status: "ACTIVE", userId: { notIn: blockedIds }, ...(room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: new Date() } } }] } : { lastSeenAt: { gt: seatLeaseCutoff() } }) }, select: { userId: true, role: true, mutedUntil: true, user: { select: { name: true, image: true, profile: { select: { username: true } } } } }, take: room.visibility === "PUBLIC" ? 100 : 50 });
   // Retain historical records for moderation, but never read or serialize public chat.
   const messages = room.visibility === "PRIVATE" ? await db.chatMessage.findMany({ where: { roomId, deleted: false, userId: { notIn: blockedIds } }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, body: true, userId: true, createdAt: true, user: { select: { name: true, image: true } } } }) : [];
-  return { id: room.id, title: room.title, description: room.description, visibility: room.visibility, hostId: room.hostId, capacity: room.capacity, theme: room.theme, scheduledAt: room.scheduledAt, movie: { id: room.movie.id, title: room.movie.title, poster: room.movie.poster, synopsis: room.movie.synopsis, year: room.movie.year, genres: room.movie.genres, durationSeconds: room.movie.durationSeconds }, media: { url: source.url, format: source.format, subtitleUrl: source.subtitleUrl, attribution: source.attribution, rightsUrl: source.rightsUrl, license: source.license }, playback: playbackSnapshot(room, room.movie.durationSeconds), membership: { role: membership.role, mutedUntil: membership.mutedUntil }, participants: participants.map(p => ({ id: p.userId, name: p.user.profile?.username || p.user.name || "Viewer", image: p.user.image, role: p.role, mutedUntil: p.mutedUntil })), messages: messages.reverse().map(m => ({ id: m.id, body: m.body, userId: m.userId, name: m.user.name || "Viewer", image: m.user.image, createdAt: m.createdAt })) };
+  return { id: room.id, title: room.title, description: room.description, visibility: room.visibility, hostId: room.hostId, capacity: room.capacity, canManage: canManageTheater(room, user), theme: room.theme, scheduledAt: room.scheduledAt, movie: { id: room.movie.id, title: room.movie.title, poster: room.movie.poster, synopsis: room.movie.synopsis, year: room.movie.year, genres: room.movie.genres, durationSeconds: room.movie.durationSeconds }, media: { url: source.url, format: source.format, subtitleUrl: source.subtitleUrl, subtitles: subtitleTracksFor(source), attribution: source.attribution, rightsUrl: source.rightsUrl, license: source.license }, playback: playbackSnapshot(room, room.movie.durationSeconds), membership: { role: membership.role, mutedUntil: membership.mutedUntil }, participants: participants.map(p => ({ id: p.userId, name: p.user.profile?.username || p.user.name || "Viewer", image: p.user.image, role: p.role, mutedUntil: p.mutedUntil })), messages: messages.reverse().map(m => ({ id: m.id, body: m.body, userId: m.userId, name: m.user.name || "Viewer", image: m.user.image, createdAt: m.createdAt })) };
 }

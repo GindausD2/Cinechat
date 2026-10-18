@@ -173,6 +173,7 @@ model Movie {
 
   @@index([title])
   @@index([createdAt])
+  @@index([createdAt, id])
 }
 
 model MediaSource {
@@ -190,8 +191,20 @@ model MediaSource {
   validFrom   DateTime  @default(now())
   validUntil  DateTime?
   movie       Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  subtitles   SubtitleTrack[]
 
   @@index([movieId, enabled])
+}
+
+model SubtitleTrack {
+  id            String @id @default(cuid())
+  mediaSourceId String
+  language      String @db.VarChar(35)
+  label         String @db.VarChar(80)
+  url           String
+  mediaSource   MediaSource @relation(fields: [mediaSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaSourceId, language])
 }
 
 model Watchlist {
@@ -263,6 +276,7 @@ model RoomMembership {
 
   @@id([roomId, userId])
   @@index([roomId, status])
+  @@index([roomId, status, lastSeenAt])
   @@index([userId, status])
   @@index([invitationId])
 }
@@ -288,6 +302,7 @@ model ChatMessage {
   roomId    String
   userId    String
   body      String     @db.VarChar(1000)
+  clientNonce String?  @db.Uuid
   deleted   Boolean    @default(false)
   createdAt DateTime   @default(now())
   room      CinemaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -296,6 +311,7 @@ model ChatMessage {
   reports   Report[]
 
   @@index([roomId, createdAt])
+  @@unique([roomId, userId, clientNonce])
 }
 
 model Reaction {

@@ -1,5 +1,7 @@
 # Deployment preparation
 
+The latest implementation and verification record is [V1-COMPLETION.md](V1-COMPLETION.md).
+
 Nothing is deployed publicly. The provided code, migrations, Dockerfile, health
 checks and CI are ready for configured infrastructure and operator review.
 
@@ -22,7 +24,27 @@ and `REALTIME_SECRET`. Route upgrades across workers and drain them gracefully.
 PostgreSQL owns playback versions, memberships and moderation. Per-socket leases
 expire after 45 seconds if a worker dies; unique users are
 counted across their tabs and workers. Authorization/playback heartbeats run every
-10 seconds, with fresh batched database checks per active local room.
+10 seconds, with fresh batched database checks per active local room. Public seats
+also use 45-second PostgreSQL leases. Joins and renewals lock the same room row,
+so an expired reservation cannot be revived after another viewer takes the seat.
+Private membership remains governed by its invitation, rather than public leases.
+A returning public viewer rechecks capacity on both HTTP and WebSocket joins.
+
+Realtime delivery runs at most four room jobs concurrently, with 32 pending
+notifications per room and 128 queued rooms per worker. Overload collapses pending
+work into an authorized database refresh; reactions may be dropped. If all room
+slots are occupied, affected connections reconnect and load authoritative state.
+Per-socket operations are capped at eight in flight. Slow transport queues close
+at 128 packets or 1 MiB, then recover on reconnect. Heartbeat room batches are
+limited to four. These bounds are operational limits, not a capacity guarantee.
+
+Private messages carry optional UUID retry keys with a database uniqueness
+constraint. A retry republishes the existing message ID without duplicating rows;
+deletions are soft, audited and retry-safe. Clients deduplicate IDs and suppress
+deleted messages. Redis subscriber recovery triggers a fresh room snapshot.
+Recent history is bounded to 100 private messages per snapshot; all retained
+nondeleted history remains in PostgreSQL. Pub/Sub is a notification layer, not a
+durable event log or an exactly-once delivery guarantee.
 
 `DATABASE_POOL_SIZE` defaults to 10 per process unless `DATABASE_URL` already sets
 `connection_limit`. Budget the total across web/realtime replicas and migrations.
@@ -90,7 +112,10 @@ commercial files on the app server or expose them with the local sample server.
 Existing V1 sources are Creative Commons open films; no DRM or paywall bypass exists.
 
 Every new source needs rights evidence, license dates, region constraints and
-attribution. Disable a source from the admin dashboard during a rights review;
+attribution. Caption assets must be covered by that authorization. Add language,
+label and WebVTT URL through the media-rights form; subtitle hosts use the same
+approved-host policy. Existing single-English caption URLs remain supported.
+Omitting additional tracks in an API update preserves them; replacement is explicit. Disable a source from the admin dashboard during a rights review;
 active clients are disconnected at their next permission heartbeat. Buffered
 client data cannot be recalled. Validate HLS manifests, renditions, subtitles and
 mobile browser support with the actual licensed production delivery service.

@@ -10,7 +10,7 @@ test("scheduled public premieres share one timeline across timezone contexts and
   const contexts = await Promise.all(["America/New_York", "Asia/Tokyo"].map(timezoneId => browser.newContext({ timezoneId, reducedMotion: "reduce" })));
   const [host, guest] = await Promise.all(contexts.map(c => c.newPage())); const suffix = Date.now().toString(36); let id = "";
   try {
-    await accountViaApi(host, `worldh_${suffix}`); await accountViaApi(guest, `worldg_${suffix}`);
+    await accountViaApi(host, `worldh_${suffix}`, { screeningAdmin: true }); await accountViaApi(guest, `worldg_${suffix}`);
     // A valid device can have the wrong wall clock. Join/reconnect must measure
     // server offset immediately, rather than seek using the browser clock.
     await contexts[1].addInitScript(() => { const now = Date.now.bind(Date); Date.now = () => now() + 120000; });
@@ -18,7 +18,7 @@ test("scheduled public premieres share one timeline across timezone contexts and
     const response = await host.request.post("/api/rooms", { headers: { ...headers, "x-vercel-ip-country": "US" }, data: { title: "A worldwide premiere", movieId: "big-buck-bunny", visibility: "PUBLIC", capacity: 250, scheduledAt, theme: "blue" } });
     expect(response.ok()).toBe(true); id = (await response.json()).id;
     expect((await guest.request.post(`/api/rooms/${id}`, { headers: { ...headers, "x-vercel-ip-country": "GB" }, data: { action: "join" } })).ok()).toBe(true);
-    for (const page of [host, guest]) { await page.goto(`/cinemas/${id}`); await expect(page.getByText("Live & synchronized")).toBeVisible(); }
+    for (const page of [host, guest]) { await page.goto(`/cinemas/${id}`); await expect(page.getByText(/Live & synchronized|Connected · Starts soon/)).toBeVisible(); }
     await expect(host.locator(`time[datetime="${scheduledAt}"]`).first()).toHaveAttribute("title", "America/New_York");
     await expect(guest.locator(`time[datetime="${scheduledAt}"]`).first()).toHaveAttribute("title", "Asia/Tokyo");
     expect(await host.locator(`time[datetime="${scheduledAt}"]`).first().textContent()).not.toBe(await guest.locator(`time[datetime="${scheduledAt}"]`).first().textContent());

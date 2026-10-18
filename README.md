@@ -3,8 +3,7 @@
 A working social cinema built with Next.js 16, React 19, TypeScript, Tailwind CSS,
 Motion, Auth.js, PostgreSQL/Prisma, Socket.IO and Redis. Original cinematic identity,
 intentional dark/light themes, licensed open-film discovery, public/private screenings and server-authoritative
-playback synchronization. The original repository contained only a README:
-“Watch movies with friends in black & white.”
+playback synchronization. This release extends the existing CineChat application.
 
 Use the appearance control in the header to choose Dark, Light, or System. The
 preference persists across reloads and tabs. The premium design, changed-file
@@ -13,11 +12,13 @@ inventory, artwork licenses, and inspected screenshots are documented in
 
 Public theaters provide synchronized movies, live viewers, and seven temporary
 emoji reactions only. Text chat is restricted to authorized private-theater
-members. Choose **Create theater**, select Public or Private, then configure the
-film, seats, schedule, and optional private access code. The theater changes,
+members. Everyone can create a private theater. Administrators create and schedule
+public screenings, and control their shared timeline. Choose **Create theater**
+to configure a film, seats, schedule, and optional private access code. The theater changes,
 security checks, and screenshots are documented in [THEATERS.md](docs/THEATERS.md).
-The current free, worldwide-theater upgrade and verification evidence are in
-[FREE-THEATERS.md](docs/FREE-THEATERS.md). Both theater types and all atmospheres
+The latest audit, implementation, migrations, verification evidence, exact file
+inventory, and preview requirements are in [V1-COMPLETION.md](docs/V1-COMPLETION.md).
+The earlier free-theater upgrade is recorded in [FREE-THEATERS.md](docs/FREE-THEATERS.md). Both theater types and all atmospheres
 are free; there are no subscription or payment requirements.
 
 ## Run locally
@@ -55,7 +56,10 @@ configure its guest limit and expiry, share it, or revoke it. A guest may rejoin
 while their invitation remains valid. Guests follow host playback. Audio starts muted to meet
 browser autoplay restrictions; tap the volume control to enable it. Leave and
 rejoin or reload to recover current authoritative playback and recent chat.
-For a public screening, the second user joins from Live Cinemas. Both viewers can
+For a public screening, an administrator creates the screening and viewers join
+from Live Cinemas. Public seat reservations expire after 45 seconds without an
+authorized renewal; returning viewers recheck capacity. Private invitations keep
+reserved membership while their grant is valid. Both viewers can
 react with ❤️ 😂 😮 😢 👏 🔥 👍; public chat is rejected by the server.
 
 Set `ADMIN_EMAILS` to your email **before registering** to create a verified admin.
@@ -72,12 +76,14 @@ npm run build
 npm run media:hls-fixture
 # Exercise the compiled app, two WebSocket workers and a loopback-only SMTP receiver:
 E2E_PRODUCTION=true npm run test:e2e
+E2E_PRODUCTION=true npm run test:mobile
 npm audit --omit=dev
 ```
 
 Playwright starts local web, two realtime workers and media services. It requires PostgreSQL,
-Redis, seeded catalog, downloaded licensed sample and Chromium:
-`npx playwright install chromium`. Browser tests create local test users and data;
+Redis, seeded catalog, downloaded licensed sample, Chromium and WebKit:
+`npx playwright install --with-deps chromium webkit`. The separate mobile command
+uses Android/Chromium and iPhone/WebKit emulation; it does not test physical phones. Browser tests create local test users and data;
 never point the test configuration at a production database. CI runs migrations,
 licensed sample setup, unit tests, production build, and browser acceptance tests
 against that build. Production browser tests configure a local SMTP receiver for
@@ -91,10 +97,10 @@ and screenshots for seven days.
 - Persistent Auth.js sessions; credentials registration, email verification,
   one-time reset tokens, secure hashing, session revocation, Google OAuth boundary,
   profile settings, privacy, avatars and account deletion.
-- Database-backed film discovery/search/genres, favorite films, watchlists,
+- Database-backed, paginated film discovery/search/genres, favorite films, watchlists,
   history, legal availability and licensed trailers. Stream URLs are excluded from
   public discovery responses. Metadata-only titles clearly show delivery limits.
-- Public/private cinema creation, scheduled global premieres, equal operational capacity limits, hashed
+- Administrator-managed public screenings, private cinema creation, scheduled global premieres, equal operational capacity limits, hashed
   invitation tokens, access codes, revocation, membership and host moderation.
 - Direct HTML5/HLS media playback, host-controlled versioned playback, reconnect,
   late join, drift correction, seek, audio, fullscreen fallback, actual HLS quality
@@ -130,9 +136,9 @@ Commercial films require distribution licenses. FrameXTV is disabled because API
 and rights could not be verified. See [media research](docs/MEDIA-PROVIDERS.md).
 
 Browser acceptance includes licensed MP4 and real two-rendition HLS media with
-subtitle cues. The sample is 320×180; source rights and quality govern production
-playback. Google OAuth, external SMTP and S3/CDN delivery require operator smoke
-tests. Chromium device emulation does not replace physical-device/Safari testing.
+English/Spanish subtitle cues. The HLS test fixture has 90p/180p variants;
+source rights and quality govern actual film playback. Google OAuth, external SMTP and S3/CDN delivery require operator smoke
+tests. Chromium and WebKit emulation do not replace physical Android/iOS Safari testing.
 
 Regional restrictions default to `REGION_DEFAULT`. For global licensed delivery,
 configure `TRUSTED_COUNTRY_HEADER` behind a proxy that overwrites that header and

@@ -28,7 +28,7 @@ async function noPublicChat(page: Page) {
 test("public theaters synchronize video and ephemeral emojis while rejecting every text-chat boundary", async ({ browser }) => {
   const suffix = Date.now().toString(36), contexts = await Promise.all([1, 2].map(() => browser.newContext({ reducedMotion: "reduce" })));
   const [host, guest] = await Promise.all(contexts.map(c => c.newPage()));
-  const hostId = await accountViaApi(host, `pubhost_${suffix}`), guestName = `pubguest_${suffix}`;
+  const hostId = await accountViaApi(host, `pubhost_${suffix}`, { screeningAdmin: true }), guestName = `pubguest_${suffix}`;
   await accountViaApi(guest, guestName);
   let roomId = ""; let socket: Socket | undefined;
   try {
@@ -59,6 +59,8 @@ test("public theaters synchronize video and ephemeral emojis while rejecting eve
       expect(denied.status()).toBe(403); expect((await denied.json()).error).toContain("private theaters");
     }
     expect((await emit(socket, "message", { body: "Public WebSocket text" })).status).toBe(403);
+    expect((await emit(socket, "message-delete", { messageId: historical.id })).status).toBe(403);
+    expect((await host.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "message-delete", messageId: historical.id } })).status()).toBe(403);
     expect((await emit(socket, "reaction", { emoji: "❤️", messageId: historical.id })).status).toBe(403);
     expect((await host.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "reaction", emoji: "❤️", messageId: historical.id } })).status()).toBe(403);
     expect((await host.request.post("/api/reports", { headers, data: { roomId, messageId: historical.id, reason: "spam" } })).status()).toBe(403);

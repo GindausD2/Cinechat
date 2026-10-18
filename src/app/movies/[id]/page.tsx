@@ -9,24 +9,25 @@ import { movieSummary } from "@/lib/media";
 import { backdropFor, filmAttribution } from "@/lib/artwork";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { MovieRail } from "@/components/movie-card";
-import { onlineCount } from "@/lib/events";
+import { listTheaters } from "@/lib/theaters";
+import { ageAt } from "@/lib/security";
+import { TheaterLobby } from "@/components/theater-lobby";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const viewerRegion = await requestRegion();
   const { id } = await params;
-  const movie = await db.movie.findUnique({ where: { id }, include: { sources: true } });
+  const movie = await db.movie.findUnique({ where: { id }, include: { sources: { include: { subtitles: true } } } });
   if (!movie) notFound();
   const user = await currentUser();
   const [saved, related, parties] = await Promise.all([
     user ? db.watchlist.findUnique({ where: { userId_movieId: { userId: user.id, movieId: id } } }) : null,
-    db.movie.findMany({ where: { id: { not: id }, genres: { hasSome: movie.genres } }, include: { sources: true }, take: 8, orderBy: { year: "desc" } }),
+    db.movie.findMany({ where: { id: { not: id }, genres: { hasSome: movie.genres } }, include: { sources: { include: { subtitles: true } } }, take: 8, orderBy: { year: "desc" } }),
     // This editorial discovery section shows public activity only. Private screenings
     // continue to be available to their authorized members in the cinema lobby.
-    db.cinemaRoom.findMany({ where: { movieId: id, visibility: "PUBLIC", endedAt: null }, include: { host: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 3 })
+    listTheaters("public", user?.id, false, { movieId: id, region: viewerRegion, ...(user ? { age: ageAt(user.profile?.birthDate || null) } : {}) })
   ]);
   const region = viewerRegion;
   const data = movieSummary(movie, region);
-  const counts = await Promise.all(parties.map(room => onlineCount(room.id)));
   const backdrop = backdropFor(movie);
   return <article className="movie-editorial">
     <section className="detail-hero" aria-labelledby="movie-title">
@@ -42,9 +43,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </div>
     </section>
     <div className="detail-content">
-      <div className="detail-facts"><div><h2>Cast & creators</h2><p>{movie.cast.join(" · ")}</p></div><div><h2>Genres</h2><p>{movie.genres.join(" · ")}</p></div><div><h2>Film project</h2><a href={movie.metadataSource} target="_blank" rel="noreferrer" className="subtle-link">Official project <ExternalLink size={12} className="inline" /></a><Link href="/legal#artwork" className="subtle-link">Artwork credits</Link></div></div>
+      <div className="detail-facts"><div><h2>Cast & creators</h2><p>{movie.cast.join(" · ")}</p></div><div><h2>Subtitles</h2><p>{data.subtitles.length ? data.subtitles.map(track => track.label).join(" · ") : "No subtitle tracks supplied"}</p></div><div><h2>Genres</h2><p>{movie.genres.join(" · ")}</p></div><div><h2>Film project</h2><a href={movie.metadataSource} target="_blank" rel="noreferrer" className="subtle-link">Official project <ExternalLink size={12} className="inline" /></a><Link href="/legal#artwork" className="subtle-link">Artwork credits</Link></div></div>
       {movie.trailerUrl && <section className="trailer-section"><h2>Official trailer</h2><video controls muted preload="none" src={movie.trailerUrl} poster={backdrop} className="trailer-video" aria-label={`${movie.title} authorized trailer`} /><small className="muted">Sintel © Blender Foundation. Official trailer, CC BY 3.0.</small></section>}
-      <section aria-labelledby="parties-title"><div className="section-header"><h2 id="parties-title">Watch it together</h2><Link href="/cinemas">All cinemas <ArrowRight size={14} /></Link></div>{parties.length ? <div className="room-grid">{parties.map((room,index) => <Link href={`/cinemas/${room.id}`} className="room-card" key={room.id}><div className="room-card-backdrop" style={{ backgroundImage: `url('${backdrop}')` }} /><div className="room-card-content"><span className="pill">{room.scheduledAt && room.scheduledAt > new Date() ? room.scheduledAt.toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }) + " UTC" : `${counts[index]} watching`}</span><h3>{room.title}</h3><p>Hosted by {room.host.name}</p></div></Link>)}</div> : <div className="section-empty"><p>No public screenings for this film right now.</p>{data.available && <Link href={`/cinemas/new?movie=${id}`}>Host a screening →</Link>}</div>}</section>
+      <section aria-labelledby="parties-title"><div className="section-header"><h2 id="parties-title">Watch it together</h2><Link href="/cinemas">All cinemas <ArrowRight size={14} /></Link></div><TheaterLobby initial={parties} scope="public" upcoming={false} signedIn={Boolean(user)} movieId={id} limit={3} /></section>
       {related.length > 0 && <section aria-labelledby="related-title"><div className="section-header"><h2 id="related-title">More like this</h2></div><MovieRail movies={related.map(item => movieSummary(item, region))} /></section>}
       {data.available && <div className="rights-note"><span className="pill">{data.license}</span>{movie.sources.filter(source => source.authorized && source.enabled).map(source => <p key={source.id}>{filmAttribution(source.attribution)} <a href={source.rightsUrl} target="_blank" rel="noreferrer">License & rights</a></p>)}</div>}
     </div>

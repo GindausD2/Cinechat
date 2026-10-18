@@ -24,7 +24,7 @@ async function authenticatedApi(email: string) {
 
 test("100 authenticated viewers span two workers with unique presence, isolated concurrent rooms, and authoritative reconnect", async ({ page }) => {
   test.setTimeout(180000);
-  const suffix = Date.now().toString(36), hostId = await accountViaApi(page,`scaleh_${suffix}`), sockets: Socket[] = [], apis: APIRequestContext[] = [];
+  const suffix = Date.now().toString(36), hostId = await accountViaApi(page,`scaleh_${suffix}`, { screeningAdmin: true }), sockets: Socket[] = [], apis: APIRequestContext[] = [];
   const host = await db.user.findUniqueOrThrow({ where: { id: hostId } }); const actors = Array.from({length:100}, (_,i) => ({id:randomUUID(),name:`load_${suffix}_${i}`,email:`load_${suffix}_${i}@example.test`,passwordHash:host.passwordHash,emailVerified:new Date()}));
   let roomId = "", privateId = "";
   try {

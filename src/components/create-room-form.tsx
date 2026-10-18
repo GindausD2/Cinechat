@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Lock, Radio, ArrowRight } from "lucide-react";
 import { GlassButton } from "./glass";
 import { THEATER_LIMITS } from "@/lib/theater-limits";
-export function CreateRoomForm({ movies, selected, initialType }: { movies: { id: string; title: string }[]; selected?: string; initialType?: "PUBLIC" | "PRIVATE" }) {
+export function CreateRoomForm({ movies, selected, initialType, canCreatePublic = false }: { movies: { id: string; title: string }[]; selected?: string; initialType?: "PUBLIC" | "PRIVATE"; canCreatePublic?: boolean }) {
   const [privacy, setPrivacy] = useState<"PUBLIC" | "PRIVATE" | null>(initialType || null), [error, setError] = useState(""), [busy, setBusy] = useState(false); const router = useRouter();
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(""); const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -16,7 +16,7 @@ export function CreateRoomForm({ movies, selected, initialType }: { movies: { id
     <span className="eyebrow">1 / 2 · THE AUDIENCE</span>
     <h2>Choose your theater.</h2><p>A shared cinema, or a screening just for your guests.</p>
     <div className="privacy-options">
-      <button type="button" onClick={() => setPrivacy("PUBLIC")}><Radio size={24} /><strong>Public Theater</strong><small>Watch with everyone</small><small>Movies, live viewers, and emoji reactions.</small></button>
+      <button type="button" disabled={!canCreatePublic} onClick={() => setPrivacy("PUBLIC")}><Radio size={24} /><strong>Public Theater</strong><small>Watch with everyone</small><small>{canCreatePublic ? "Movies, live viewers, and emoji reactions." : "Public screenings are scheduled by CineChat moderators."}</small></button>
       <button type="button" onClick={() => setPrivacy("PRIVATE")}><Lock size={24} /><strong>Private Theater</strong><small>Watch with invited friends</small><small>Private chat, reactions, and secure invitations.</small></button>
     </div>
   </div>;

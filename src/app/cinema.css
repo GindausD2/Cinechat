@@ -22,7 +22,7 @@
 .invitation-entry { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .invitation-entry label { flex: 1; min-width: 200px; }
 .invitation-entry .error-message { flex-basis: 100%; }
-.screening-time small { display: inline; font-size: 10px; opacity: .85; }
+.screening-time small { display: inline; font-size: 10px; opacity: 1; }
 .room-card-content .join-arrow { display: inline-flex; width: auto; gap: 6px; font-size: 10px; }
 .invitation-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
 .invitation-list { max-height: 210px; overflow: auto; margin-top: 22px; }
@@ -168,3 +168,43 @@
   .reaction-bar button { width: 36px; flex-basis: 36px; }
   .floating-reaction { left: calc(10px + var(--reaction-lane)*36px); }
 }
+
+/* Editorial screening cards retain crisp portrait artwork in both themes. */
+.room-card.screening-card { display: flex; gap: 18px; padding: 18px; background: var(--surface); color: var(--text); border: 1px solid var(--line); align-items: flex-start; }
+.screening-poster { position: relative; flex: 0 0 88px; aspect-ratio: 2/3; overflow: hidden; border-radius: 3px; }
+.screening-poster img { object-fit: cover; }
+.screening-details { min-width: 0; flex: 1; }
+.screening-details h3 { line-height: 1.4; margin: 8px 0; }
+.screening-details p,.screening-details .muted { color: var(--muted-on-surface); font-size: 11px; margin: 0 0 8px; }
+.screening-details .screening-movie { color: var(--text); font-size: 13px; }
+.screening-details .screening-time small { opacity: 1; color: var(--muted-on-surface); }
+.screening-state { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; color: var(--accent-text); }
+.screening-privacy { display: block; font-size: 10px; color: var(--muted-on-surface); margin: 10px 0; }
+.screening-join { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--accent-text); min-height: 32px; }
+.theater-choice .privacy-options button:disabled { opacity: .65; cursor: default; border-color: var(--line); background: var(--surface); }
+.reaction-visibility { display: block; margin: 0 0 5px auto; min-height: 28px; padding: 4px 8px; border: 0; border-radius: 4px; background: rgba(8,9,13,.8); color: #fff; font-size: 10px; }
+.live-reactions { bottom: calc(100% + 6px); }
+@media(min-width:701px) and (max-width:1200px) { .room-grid:has(.screening-card) { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:380px) { .room-card.screening-card { padding: 14px; gap: 12px; } .screening-poster { flex-basis: 76px; } }
+
+/* Immersive controls always have a keyboard/touch-accessible restore action. */
+.player-controls-toggle { position: absolute; z-index: 4; top: max(8px,env(safe-area-inset-top)); right: max(8px,env(safe-area-inset-right)); display: grid; place-items: center; width: 44px; height: 44px; color: #fff; background: rgba(8,9,13,.72); border: 1px solid rgba(255,255,255,.16); border-radius: 5px; }
+.controls-hidden .glass-player-controls,.controls-hidden .theater-reactions { display: none; }
+.controls-row .subtitle-select { color: #fff; background: #12151d; border: 1px solid rgba(255,255,255,.25); width: 96px; min-height: 36px; padding: 4px; font-size: 11px; }
+.theater-reactions { inset: 0; max-width: none; transform: none; pointer-events: none; }
+.theater-reactions .reaction-bar { position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); pointer-events: auto; }
+.theater-reactions .live-reactions { bottom: 172px; left: 50%; right: auto; width: 320px; max-width: calc(100% - 16px); transform: translateX(-50%); }
+.theater-reactions .reaction-visibility { position: absolute; top: max(8px,env(safe-area-inset-top)); left: max(8px,env(safe-area-inset-left)); margin: 0; min-height: 44px; pointer-events: auto; }
+.player-shell:fullscreen .glass-player-controls,.player-shell.is-expanded .glass-player-controls { bottom: max(8px,env(safe-area-inset-bottom)); left: max(8px,env(safe-area-inset-left)); right: max(8px,env(safe-area-inset-right)); }
+@container(max-width:620px) {
+  .theater-reactions .reaction-bar { bottom: 94px; }
+  .theater-reactions .live-reactions { bottom: 144px; width: 282px; }
+  .controls-row { flex-wrap: wrap; }
+  .controls-row .subtitle-select { width: 88px; }
+}
+@media(max-width:700px) {
+  .player-shell { min-height: 240px; }
+  .player-shell:fullscreen,.player-shell.is-expanded { min-height: 0; }
+}
+.theater-reactions .reaction-bar { bottom: calc(var(--controls-height,84px) + 12px); }
+.theater-reactions .live-reactions { bottom: calc(var(--controls-height,84px) + 66px); }

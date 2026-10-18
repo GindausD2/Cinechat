@@ -6,12 +6,15 @@ import { RoomClient } from "@/components/room-client";
 import { roomSnapshot } from "@/lib/rooms";
 import { requestRegion } from "@/lib/request-region";
 import { AppError } from "@/lib/security";
+import { validInvitationGrant } from "@/lib/invitation-access";
+import { hasPublicSeat } from "@/lib/seat-lease";
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ invite?: string }> }) {
   const { id } = await params; const user = await currentUser(); if (!user) redirect(`/login?returnTo=${encodeURIComponent(`/cinemas/${id}`)}`);
-  const room = await db.cinemaRoom.findUnique({ where: { id }, include: { movie: true, memberships: { where: { userId: user.id } } } });
+  const room = await db.cinemaRoom.findUnique({ where: { id }, include: { movie: true, memberships: { where: { userId: user.id }, include: { invitation: true } } } });
   const membership = room?.memberships[0];
   if (!room || room.endedAt || membership?.status === "BANNED" || (room.visibility === "PRIVATE" && !membership && room.hostId !== user.id)) notFound();
-  if (membership?.status === "ACTIVE") {
+  if (room.visibility === "PRIVATE" && room.hostId !== user.id && !validInvitationGrant(membership?.invitation || null)) notFound();
+  if (membership?.status === "ACTIVE" && (room.visibility === "PRIVATE" || hasPublicSeat(membership.lastSeenAt))) {
     let snapshot: Awaited<ReturnType<typeof roomSnapshot>> | null = null; let message = "Try again shortly.";
     try { snapshot = await roomSnapshot(id, user, await requestRegion()); }
     catch (error) { if (error instanceof AppError) message = error.message; }

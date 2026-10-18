@@ -25,7 +25,8 @@
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "setup:local": "node scripts/setup-local.mjs",
     "media:upload": "tsx scripts/upload-media.ts",
-    "check:production": "node scripts/check-production.mjs"
+    "check:production": "node scripts/check-production.mjs",
+    "test:mobile": "playwright test -c playwright.mobile.config.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

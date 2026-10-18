@@ -104,7 +104,7 @@
 .detail-hero .back-link { color: #bfc7d4; margin-bottom: 40px; }
 .detail-hero h1 { font-size: clamp(36px,4vw,60px); }
 .detail-content { padding-top: 24px; }
-.detail-facts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; padding: 20px 0 32px; border-bottom: 1px solid var(--line); }
+.detail-facts { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 28px; padding: 20px 0 32px; border-bottom: 1px solid var(--line); }
 .detail-facts h2 { font: 600 14px "Inter",sans-serif; letter-spacing: 0; margin-bottom: 12px; }
 .detail-facts p { color: var(--muted); font-size: 13px; margin: 0; }
 .detail-facts .subtle-link { font-size: 12px; margin: 8px 0; }
@@ -175,3 +175,4 @@
   .detail-facts>div:first-child { grid-column: 1/-1; }
   .detail-content { padding-top: 0; }
 }
+.load-more { display: flex; justify-content: center; margin: 32px 0; }

@@ -1,5 +1,6 @@
 import { redisConnection } from "./redis";
-export const PRESENCE_TTL_MS = 45000;
+import { PUBLIC_SEAT_LEASE_MS } from "./seat-lease";
+export const PRESENCE_TTL_MS = PUBLIC_SEAT_LEASE_MS;
 // Per-connection timestamps prevent a crashed worker's stale socket from keeping
 // another tab's user present forever. All mutations are atomic across workers.
 const touch = `redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]-ARGV[4]); redis.call('ZADD',KEYS[1],ARGV[1],ARGV[2]); redis.call('EXPIRE',KEYS[1],75); redis.call('ZADD',KEYS[2],ARGV[1],ARGV[3]); redis.call('EXPIRE',KEYS[2],120); return 1`;

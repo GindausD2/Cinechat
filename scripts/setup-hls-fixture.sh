@@ -20,3 +20,11 @@ WEBVTT
 00:00.000 --> 00:20.000
 Big Buck Bunny — Blender Foundation. CC BY 3.0 licensed excerpt.
 CAPTIONS
+
+# Original test caption text in a second language, under the same CC BY fixture.
+cat > .data/media/hls/captions.es.vtt <<'CAPTIONS'
+WEBVTT
+
+00:00.000 --> 00:20.000
+Big Buck Bunny — Blender Foundation. Fragmento de prueba con licencia CC BY 3.0.
+CAPTIONS

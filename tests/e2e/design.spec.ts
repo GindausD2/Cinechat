@@ -88,16 +88,20 @@ test("discovery and movie editorial layouts render in both themes at desktop and
   }
   await page.setViewportSize({ width: 768,height:1024 }); await page.goto("/movies"); await noOverflow(page);
   await page.setViewportSize({ width: 360,height:800 }); await page.goto("/movies"); await noOverflow(page);
+  const comedy = await (await page.request.get("/api/movies?genre=Comedy")).json();
+  expect(comedy.movies.length).toBeGreaterThan(0);
+  expect(comedy.movies.every((movie: { genres: string[] }) => movie.genres.includes("Comedy"))).toBe(true);
   await page.getByLabel("Filter by genre").selectOption("Comedy");
-  await expect(page.locator(".movie-card")).toHaveCount(2);
+  await expect(page.locator(".movie-card")).toHaveCount(comedy.movies.length);
+  const destination = await page.locator(".movie-card").first().getAttribute("href");
   await page.locator(".movie-card").first().focus(); await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/movies\/(big-buck-bunny|caminandes)/);
+  await expect(page).toHaveURL(new URL(destination!, "http://localhost:3000").href);
 });
 
 test("cinema theme controls, chat collapse, viewer list, and public movie parties preserve privacy", async ({ browser }) => {
   const context = await browser.newContext({viewport:{width:1440,height:1000},colorScheme:"dark"});
   const page = await context.newPage();
-  const userId = await accountViaApi(page,`design_${Date.now().toString(36)}`);
+  const userId = await accountViaApi(page,`design_${Date.now().toString(36)}`, { screeningAdmin: true });
   const headers = { origin: "http://localhost:3000" };
   await prisma.watchHistory.upsert({ where:{userId_movieId:{userId,movieId:"big-buck-bunny"}}, create:{userId,movieId:"big-buck-bunny",position:120}, update:{position:120} });
   await page.goto("/");
@@ -114,7 +118,7 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
       for (const theme of ["Dark","Light"] as const) {
         await chooseTheme(page,theme); await page.reload();
         await capture(page,`room-${device}-${theme.toLowerCase()}`);
-        await page.getByRole("button", { name: "Invite", exact: true }).click();
+        await page.getByRole("button", { name: "Invite Friends", exact: true }).click();
         await expect(page.getByRole("dialog")).toBeVisible();
         const dialog = await page.getByRole("dialog").boundingBox(); expect(dialog).not.toBeNull();
         expect(Math.abs(dialog!.x + dialog!.width / 2 - width / 2)).toBeLessThan(2); expect(dialog!.y).toBeGreaterThanOrEqual(15); expect(dialog!.height).toBeLessThanOrEqual(height - 31);

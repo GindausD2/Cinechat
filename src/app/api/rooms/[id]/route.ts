@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/redis";
 import { AppError, ageAt, regionForRequest } from "@/lib/security";
 import { publishRoomEvent } from "@/lib/events";
-import { sendMessage, sendReaction } from "@/lib/live";
-import { messageSchema, reactionSchema } from "@/lib/validation";
+import { sendMessage, sendReaction, deleteMessage } from "@/lib/live";
+import { messageSchema, messageDeleteSchema, reactionSchema } from "@/lib/validation";
 import { playableSource } from "@/lib/media";
+import { canManageTheater } from "@/lib/theater-policy";
 export const GET = api(async request => { const user = await requireUser(); const id = new URL(request.url).pathname.split("/").pop()!; return roomSnapshot(id, user, regionForRequest(request.headers)); });
 export const POST = api(async request => {
   const user = await requireUser(); const roomId = new URL(request.url).pathname.split("/").pop()!;
@@ -19,6 +20,7 @@ export const POST = api(async request => {
     z.object({ action: z.literal("revoke-invite"), invitationId: z.string() }),
     z.object({ action: z.literal("end") }),
     z.object({ action: z.literal("message"), ...messageSchema.shape }),
+    z.object({ action: z.literal("message-delete"), ...messageDeleteSchema.shape }),
     z.object({ action: z.literal("reaction"), ...reactionSchema.shape }),
     z.object({ action: z.literal("moderate"), targetId: z.string(), command: z.enum(["remove", "mute", "unmute"]) })
   ]).parse(await jsonBody(request));
@@ -26,21 +28,25 @@ export const POST = api(async request => {
   if (input.action === "join") return joinRoom(roomId, user, input.token, input.accessCode, regionForRequest(request.headers));
   if (input.action === "leave") return leaveRoom(roomId, user.id);
   if (input.action === "invite") return createInvitation(roomId, user.id, input.maxUses, input.expiryHours);
-  if (input.action === "message" || input.action === "reaction") {
+  if (input.action === "message" || input.action === "reaction" || input.action === "message-delete") {
     const { room } = await roomAccess(roomId, user.id);
     playableSource(room.movie, regionForRequest(request.headers), ageAt(user.profile?.birthDate || null));
-    return input.action === "message" ? sendMessage(roomId, user.id, input) : sendReaction(roomId, user.id, input);
+    return input.action === "message" ? sendMessage(roomId, user.id, input) : input.action === "message-delete" ? deleteMessage(roomId, user.id, input) : sendReaction(roomId, user.id, input);
   }
   const { room } = await roomAccess(roomId, user.id);
-  if (room.hostId !== user.id) throw new AppError(403, "Host permission required.");
+  if (!canManageTheater(room, user)) throw new AppError(403, room.visibility === "PUBLIC" ? "Administrator permission required." : "Host permission required.");
   if (input.action === "revoke-invite") {
     await db.$transaction([
       db.invitation.updateMany({ where: { id: input.invitationId, roomId }, data: { revoked: true } }),
-      db.roomMembership.updateMany({ where: { roomId, invitationId: input.invitationId }, data: { status: "LEFT" } })
+      db.roomMembership.updateMany({ where: { roomId, invitationId: input.invitationId }, data: { status: "LEFT" } }),
+      db.moderationAction.create({ data: { actorId: user.id, targetId: input.invitationId, action: "invitation:revoke", reason: `Invitation revoked in ${roomId}` } })
     ]);
     await publishRoomEvent({ roomId, type: "refresh" }); return { revoked: true };
   }
-  if (input.action === "end") { await db.cinemaRoom.update({ where: { id: roomId }, data: { endedAt: new Date(), playing: false } }); await publishRoomEvent({ roomId, type: "ended" }); return { ended: true }; }
+  if (input.action === "end") {
+    await db.$transaction([db.cinemaRoom.update({ where: { id: roomId }, data: { endedAt: new Date(), playing: false, playbackVersion: { increment: 1 }, playbackUpdatedAt: new Date() } }), db.moderationAction.create({ data: { actorId: user.id, targetId: roomId, action: "screening:end", reason: `${room.visibility} screening ended` } })]);
+    await publishRoomEvent({ roomId, type: "ended" }); return { ended: true };
+  }
   if (input.targetId === user.id) throw new AppError(400, "Choose another participant.");
   await db.$transaction([
     db.roomMembership.update({ where: { roomId_userId: { roomId, userId: input.targetId } }, data: input.command === "remove" ? { status: "BANNED" } : { mutedUntil: input.command === "mute" ? new Date(Date.now() + 3600000) : null } }),

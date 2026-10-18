@@ -21,6 +21,8 @@ export const createRoomSchema = z.object({
   accessCode: z.string().min(6).max(64).optional(),
   scheduledAt: z.iso.datetime().optional(), theme: z.enum(["silver", "blue", "midnight", "sage", "amber"]).default("silver")
 }).refine(input => input.visibility !== "PRIVATE" || input.capacity <= THEATER_LIMITS.privateCapacity, "Private theaters support up to 50 participants.");
-export const messageSchema = z.object({ body: z.string().trim().min(1).max(1000) });
+export const messageSchema = z.object({ body: z.string().trim().min(1).max(1000), clientNonce: z.uuid().optional() });
+export const messageDeleteSchema = z.object({ messageId: z.string().min(1).max(128) });
+export const subtitleTrackSchema = z.object({ language: z.string().max(35).regex(/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/).transform(value => value.toLowerCase()), label: z.string().trim().min(1).max(80), url: z.url().max(2048) });
 export const reactionSchema = z.object({ emoji: z.enum(THEATER_REACTIONS), messageId: z.string().min(1).max(128).optional() });
 export const playbackSchema = z.object({ action: z.enum(["play", "pause", "seek"]), position: z.number().finite().nonnegative().optional(), expectedVersion: z.number().int().nonnegative() });
