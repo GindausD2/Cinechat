@@ -3,6 +3,7 @@ import { onlineCount } from "./events";
 import { backdropFor } from "./artwork";
 import { sourceAllowed } from "./media";
 import { regionForRequest } from "./security";
+import { minimumAccountAge } from "./privacy";
 import { screeningStatus } from "./theater-policy";
 
 export type TheaterScope = "public" | "private" | "all";
@@ -29,7 +30,7 @@ export async function listTheaters(scope: TheaterScope, userId?: string, upcomin
   });
   return Promise.all(rooms.map(async room => {
     const { sources, ...movie } = room.movie;
-    const available = sources.some(source => sourceAllowed(source, region, now)) && (options.age === undefined || options.age >= movie.minAge);
+    const available = sources.some(source => sourceAllowed(source, region, now)) && (options.age === undefined || options.age >= Math.max(movie.minAge, minimumAccountAge()));
     const status = screeningStatus(room, available, now);
     return { ...room, movie, scheduledAt: room.scheduledAt?.toISOString() || null, endedAt: room.endedAt?.toISOString() || null, createdAt: room.createdAt.toISOString(), status,
       artwork: backdropFor(movie), online: status === "Ended" ? 0 : await onlineCount(room.id) };

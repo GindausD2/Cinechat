@@ -17,6 +17,7 @@ import { authorizeAudience } from "../src/lib/realtime-audience";
 import { touchPresence, removePresence, presenceSnapshot } from "../src/lib/presence";
 import { startDueScreenings, finishDueScreenings } from "../src/lib/screenings";
 import { RoomDeliveryQueue } from "../src/lib/room-delivery-queue";
+import { privacyMaintenanceTick } from "../src/lib/privacy-maintenance";
 import { renewMemberships } from "../src/lib/seat-renewal";
 
 const origin = new URL(process.env.APP_ORIGIN || "http://localhost:3000").origin;
@@ -30,7 +31,20 @@ const io = new Server(http, { cors: { origin, credentials: true }, allowRequest:
 io.adapter(createAdapter(publisher, adapterSubscriber));
 type Ack = (response: { ok: boolean; data?: unknown; error?: string; status?: number }) => void;
 const connection = (socket: Socket, roomId: string) => ({ roomId, userId: socket.data.userId as string, socketId: socket.id });
-async function broadcastPresence(roomId: string) { io.to(`room:${roomId}`).emit("presence", await presenceSnapshot(roomId)); }
+function presenceForRoom(presence: Awaited<ReturnType<typeof presenceSnapshot>>, visibility: string) {
+  return visibility === "PUBLIC" ? { count: presence.count, ids: [] } : presence;
+}
+async function broadcastPresence(roomId: string) {
+  const [presence, room] = await Promise.all([presenceSnapshot(roomId), db.cinemaRoom.findUnique({ where: { id: roomId }, select: { visibility: true } })]);
+  if (!room) return;
+  if (room.visibility === "PUBLIC") { io.to(`room:${roomId}`).emit("presence", presenceForRoom(presence, "PUBLIC")); return; }
+  // A socket may remain subscribed briefly after revocation or expiry. Private
+  // presence is personal room data too: never broadcast it to a stale grant.
+  const sockets = localSockets(roomId);
+  if (!sockets.length) return;
+  const { authorized } = await authorizeAudience(roomId, audience(sockets));
+  for (const socket of sockets) if (authorized.has(socket.id) && socket.data.roomId === roomId && canDeliver(socket)) socket.emit("presence", presence);
+}
 async function socketIdentity(socket: Socket) {
   const ticket = await db.realtimeTicket.findUnique({ where: { tokenHash: socket.data.ticketHash as string }, include: { user: { include: { profile: true } } } });
   if (!ticket || ticket.expiresAt <= new Date() || ticket.user.suspended || ticket.authVersion !== ticket.user.authVersion) throw new AppError(401, "Session expired. Please sign in again.");
@@ -107,7 +121,7 @@ io.on("connection", socket => {
   });
   handle("sync", async () => {
     const { room, roomId } = await authorizedRoom(socket); await rateLimit(`sync:${socket.data.userId}`, 30, 60); await touchPresence([connection(socket, roomId)]);
-    const state = playbackSnapshot(room, room.movie.durationSeconds); socket.emit("playback", state); socket.emit("presence", await presenceSnapshot(roomId)); return state;
+    const state = playbackSnapshot(room, room.movie.durationSeconds); socket.emit("playback", state); socket.emit("presence", presenceForRoom(await presenceSnapshot(roomId), room.visibility)); return state;
   });
   // Clock replies contain no room data. Fresh batched authorization runs every
   // ten seconds; mutations and explicit sync always recheck permissions directly.
@@ -149,7 +163,10 @@ const delivery = new RoomDeliveryQueue(async event => {
       if (event.type === "refresh" || event.type === "removed") {
         if (room.visibility === "PRIVATE") await sendState(socket, event.roomId);
         else { socket.emit("playback", playbackSnapshot(room, room.movie.durationSeconds)); socket.emit("participants-changed"); }
-      } else if (event.type === "message-delete" || !blocked.has(socket.id)) socket.emit(event.type, event.data);
+      } else if (event.type === "message-delete" || !blocked.has(socket.id)) {
+        const payload = room.visibility === "PUBLIC" && event.type === "reaction" ? { id: data?.id, emoji: (event.data as { emoji: string }).emoji, messageId: null } : event.data;
+        socket.emit(event.type, payload);
+      }
     }));
     if (changedPresence) await broadcastPresence(event.roomId);
 }, roomId => {
@@ -189,7 +206,7 @@ const heartbeat = setInterval(() => {
           if (socket.data.roomId !== roomId) continue;
           if (expiredSeats.has(socket.id) || (authorized.has(socket.id) && !renewed.has(socket.data.userId as string))) { socket.conn.close(true); continue; }
           if (!authorized.has(socket.id)) await removeFromRoom(socket, roomId, "Session, membership, invitation, or media authorization changed.");
-          else if (canDeliver(socket)) { socket.emit("playback", state); socket.emit("presence", presence); }
+          else if (canDeliver(socket)) { socket.emit("playback", state); socket.emit("presence", presenceForRoom(presence, room.visibility)); }
         }
       } catch (error) {
         if (error instanceof AppError && error.status === 404) await Promise.all(sockets.map(s => removeFromRoom(s, roomId, "This screening has ended.")));
@@ -199,6 +216,7 @@ const heartbeat = setInterval(() => {
     }));
   })().finally(() => { heartbeatRunning = false; });
 }, 10000);
+const privacyCleanup = setInterval(() => { void privacyMaintenanceTick().catch(() => console.error("Privacy maintenance failed; the next tick will retry.")); }, 60000);
 const reminders = setInterval(() => { void sendDueReminders().catch(() => console.error("Screening reminder delivery failed.")); }, 60000);
 let startingScreenings = false;
 const premieres = setInterval(() => {
@@ -208,7 +226,7 @@ const premieres = setInterval(() => {
 http.listen(Number(process.env.WS_PORT || 3001), "0.0.0.0", () => console.log("CineChat real-time service ready."));
 let stopping = false;
 async function shutdown() {
-  if (stopping) return; stopping = true; clearInterval(heartbeat); clearInterval(reminders); clearInterval(premieres);
+  if (stopping) return; stopping = true; clearInterval(heartbeat); clearInterval(reminders); clearInterval(privacyCleanup); clearInterval(premieres);
   await io.close(); await Promise.allSettled([subscriber.quit(), publisher.quit(), adapterSubscriber.quit(), redis.quit()]); await db.$disconnect(); process.exit(0);
 }
 process.on("SIGTERM", () => { void shutdown(); }); process.on("SIGINT", () => { void shutdown(); });

@@ -1,0 +1,3 @@
+import { PolicyPage } from "@/components/policy-page";
+export const metadata = { title: "Free service & refunds" };
+export default function Refunds() { return <PolicyPage title="Free service & refunds"><p>CineChat V1 does not charge users. Public theaters, private theaters, invitations, chat and reactions have no subscription or admission fee. There is no checkout or payment collection in this version.</p><p>Because CineChat currently collects no payments, subscription refunds are not applicable. No payment method is needed to close your account or leave a theater. Your internet or mobile provider may charge for data under its own terms.</p></PolicyPage>; }

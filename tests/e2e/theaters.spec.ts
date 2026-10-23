@@ -159,7 +159,7 @@ test("private chat stays member-only and invitation, moderation, and reaction li
     for (let i = 0; i < 5; i++) expect((await emit(hostSocket, "reaction", { emoji: "🔥" })).ok).toBe(true);
     expect((await emit(hostSocket, "reaction", { emoji: "🔥" })).status).toBe(429);
     expect((await host.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "reaction", emoji: "👍" } })).status()).toBe(429);
-    expect(await db.reaction.count({ where: { roomId, userId: hostId } })).toBe(10);
+    expect(await db.reaction.count({ where: { roomId, userId: hostId } })).toBe(0); // Floating reactions are not persistent personal history.
     expect((await guest.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "moderate", targetId: hostId, command: "remove" } })).status()).toBe(403);
     expect((await host.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "moderate", targetId: guestId, command: "mute" } })).ok()).toBe(true);
     expect((await guest.request.post(`/api/rooms/${roomId}`, { headers, data: { action: "message", body: "Muted HTTP message" } })).status()).toBe(403);

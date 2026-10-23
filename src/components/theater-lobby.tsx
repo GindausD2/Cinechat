@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { PrivacyImage as Image } from "@/components/privacy-image";
 import { posterFor } from "@/lib/artwork";
 import { ArrowUpRight, Radio, Lock } from "lucide-react";
 import { ScreeningTime } from "./screening-time";

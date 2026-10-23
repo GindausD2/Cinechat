@@ -22,6 +22,7 @@
   --glass: rgba(18,21,29,.88);
   --glass-line: rgba(255,255,255,.12);
   --input: #12151d;
+  --control-border: #5f6b80;
   --hover: rgba(255,255,255,.06);
   --shadow: 0 12px 32px rgba(0,0,0,.20);
   --success: #8bd6ad;
@@ -47,6 +48,7 @@
   --glass: rgba(255,255,255,.91);
   --glass-line: rgba(15,23,42,.10);
   --input: #ffffff;
+  --control-border: #7b879a;
   --hover: rgba(15,23,42,.04);
   --shadow: 0 12px 32px rgba(15,23,42,.08);
   --success: #166534;

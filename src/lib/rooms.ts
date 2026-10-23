@@ -10,6 +10,8 @@ import { THEATER_LIMITS } from "./theater-limits";
 import { validInvitationGrant } from "./invitation-access";
 import { canManageTheater } from "./theater-policy";
 import { hasPublicSeat, seatLeaseCutoff } from "./seat-lease";
+import { requirePolicyAcceptance } from "./policy-acceptance";
+import { adultBirthDateCutoff } from "./privacy";
 type Viewer = User & { profile: Profile | null };
 export async function serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -19,6 +21,7 @@ export async function serializable<T>(work: (tx: Prisma.TransactionClient) => Pr
   throw new AppError(409, "Please retry this room action.");
 }
 export async function createRoom(user: Viewer, raw: unknown, region = regionForRequest()) {
+  await requirePolicyAcceptance(user.id);
   const input = createRoomSchema.parse(raw); const limits = THEATER_LIMITS;
   if (input.visibility === "PUBLIC" && user.role !== "ADMIN") throw new AppError(403, "Only administrators can create public screenings. Create a private theater to watch with friends.");
   if (input.scheduledAt && (new Date(input.scheduledAt) <= new Date() || new Date(input.scheduledAt).getTime() > Date.now() + 31536000000)) throw new AppError(400, "Choose a screening date in the next year.");
@@ -46,6 +49,7 @@ export async function roomAccess(roomId: string, userId: string) {
   return { room, membership };
 }
 export async function joinRoom(roomId: string, user: Viewer, invitationToken?: string, accessCode?: string, region = regionForRequest()) {
+  await requirePolicyAcceptance(user.id);
   const result = await db.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "CinemaRoom" WHERE id = ${roomId} FOR UPDATE`;
     const now = new Date();
@@ -87,13 +91,17 @@ export async function createInvitation(roomId: string, userId: string, requested
   return { id: invitation.id, url: `${process.env.APP_ORIGIN}/invite/${token}`, expiresAt, maxUses };
 }
 export async function leaveRoom(roomId: string, userId: string) {
-  const { room } = await roomAccess(roomId, userId);
-  await db.$transaction(async tx => {
+  const changed = await db.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "CinemaRoom" WHERE id = ${roomId} FOR UPDATE`;
+    const room = await tx.cinemaRoom.findUnique({ where: { id: roomId }, include: { movie: { select: { durationSeconds: true } } } });
+    const membership = await tx.roomMembership.findUnique({ where: { roomId_userId: { roomId, userId } } });
+    // Leaving never requires a still-valid invitation or seat. Never change a ban.
+    if (!room || membership?.status !== "ACTIVE") return false;
     await tx.roomMembership.update({ where: { roomId_userId: { roomId, userId } }, data: { status: "LEFT" } });
-    if (room.hostId === userId && room.visibility === "PRIVATE") await tx.cinemaRoom.update({ where: { id: roomId }, data: { position: currentPosition(room, room.movie.durationSeconds), playing: false, playbackUpdatedAt: new Date(), playbackVersion: { increment: 1 } } });
+    if (room.hostId === userId && room.visibility === "PRIVATE" && !room.endedAt) await tx.cinemaRoom.update({ where: { id: roomId }, data: { position: currentPosition(room, room.movie.durationSeconds), playing: false, playbackUpdatedAt: new Date(), playbackVersion: { increment: 1 } } });
+    return true;
   });
-  await publishRoomEvent({ roomId, type: "removed", userId });
-  if (room.hostId === userId) await publishRoomEvent({ roomId, type: "refresh" });
+  if (changed) await publishRoomEvent({ roomId, type: "removed", userId });
   return { left: true };
 }
 export async function roomSnapshot(roomId: string, user: Viewer, region = regionForRequest()) {
@@ -101,7 +109,8 @@ export async function roomSnapshot(roomId: string, user: Viewer, region = region
   const source = playableSource(room.movie, region, ageAt(user.profile?.birthDate || null));
   const blocks = await db.block.findMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
   const blockedIds = blocks.map(b => b.blockerId === user.id ? b.blockedId : b.blockerId);
-  const participants = await db.roomMembership.findMany({ where: { roomId, status: "ACTIVE", userId: { notIn: blockedIds }, ...(room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: new Date() } } }] } : { lastSeenAt: { gt: seatLeaseCutoff() } }) }, select: { userId: true, role: true, mutedUntil: true, user: { select: { name: true, image: true, profile: { select: { username: true } } } } }, take: room.visibility === "PUBLIC" ? 100 : 50 });
+  const privacyFilter = room.visibility === "PUBLIC" && !canManageTheater(room, user) ? { OR: [{ userId: user.id }, { user: { profile: { publicProfile: true, showActivity: true, birthDate: { lte: adultBirthDateCutoff() } } } }] } : {};
+  const participants = await db.roomMembership.findMany({ where: { AND: [privacyFilter], roomId, status: "ACTIVE", userId: { notIn: blockedIds }, ...(room.visibility === "PRIVATE" ? { OR: [{ userId: room.hostId }, { invitation: { revoked: false, expiresAt: { gt: new Date() } } }] } : { lastSeenAt: { gt: seatLeaseCutoff() } }) }, select: { userId: true, role: true, mutedUntil: true, user: { select: { name: true, image: true, profile: { select: { username: true } } } } }, take: room.visibility === "PUBLIC" ? 100 : 50 });
   // Retain historical records for moderation, but never read or serialize public chat.
   const messages = room.visibility === "PRIVATE" ? await db.chatMessage.findMany({ where: { roomId, deleted: false, userId: { notIn: blockedIds } }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, body: true, userId: true, createdAt: true, user: { select: { name: true, image: true } } } }) : [];
   return { id: room.id, title: room.title, description: room.description, visibility: room.visibility, hostId: room.hostId, capacity: room.capacity, canManage: canManageTheater(room, user), theme: room.theme, scheduledAt: room.scheduledAt, movie: { id: room.movie.id, title: room.movie.title, poster: room.movie.poster, synopsis: room.movie.synopsis, year: room.movie.year, genres: room.movie.genres, durationSeconds: room.movie.durationSeconds }, media: { url: source.url, format: source.format, subtitleUrl: source.subtitleUrl, subtitles: subtitleTracksFor(source), attribution: source.attribution, rightsUrl: source.rightsUrl, license: source.license }, playback: playbackSnapshot(room, room.movie.durationSeconds), membership: { role: membership.role, mutedUntil: membership.mutedUntil }, participants: participants.map(p => ({ id: p.userId, name: p.user.profile?.username || p.user.name || "Viewer", image: p.user.image, role: p.role, mutedUntil: p.mutedUntil })), messages: messages.reverse().map(m => ({ id: m.id, body: m.body, userId: m.userId, name: m.user.name || "Viewer", image: m.user.image, createdAt: m.createdAt })) };

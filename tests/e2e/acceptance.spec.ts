@@ -8,7 +8,7 @@ async function register(page: Page, username: string) {
   await page.getByLabel("Date of birth").fill("1990-01-01");
   await page.getByLabel("Email address").fill(`${username}@example.com`);
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.locator('input[name="acceptTerms"]').check(); await page.locator('input[name="acknowledgePrivacy"]').check(); await page.locator('input[name="ageEligible"]').check(); await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("status")).toContainText("Account created");
   const directory = join(process.cwd(), ".data/outbox");
   const files = await readdir(directory);

@@ -77,7 +77,7 @@ npm run media:hls-fixture
 # Exercise the compiled app, two WebSocket workers and a loopback-only SMTP receiver:
 E2E_PRODUCTION=true npm run test:e2e
 E2E_PRODUCTION=true npm run test:mobile
-npm audit --omit=dev
+npm audit
 ```
 
 Playwright starts local web, two realtime workers and media services. It requires PostgreSQL,
@@ -147,3 +147,11 @@ tickets. Leaving this unset deliberately ignores client country headers.
 
 No public deployment was performed. See [deployment instructions](docs/DEPLOYMENT.md),
 [implementation checklist](docs/IMPLEMENTATION.md), and [delivery report](docs/DELIVERY.md).
+
+## Privacy, safety and transparency
+
+The October 2026 trust update adds dedicated policies, cookie/image choices, versioned form acknowledgements, account export and email-confirmed deletion. Read [the audit and release evidence](docs/TRUST-AUDIT.md), [exact changed paths](docs/TRUST-FILES.md), [third-party inventory](docs/THIRD-PARTY-AUDIT.md), and [asset/rights audit](docs/ASSET-LICENSE-AUDIT.md). These changes do not establish legal compliance.
+
+Apply the additive migrations with `npm run db:migrate`. The real-time worker runs bounded expired-credential/deleted-text cleanup hourly. `npm run privacy:cleanup` previews cleanup counts; `npm run privacy:cleanup -- --apply` processes a batch. Accounts, active messages and legacy billing records are not removed by maintenance. Founder-supplied public contact/operator variables are listed in `.env.example`. `MINIMUM_ACCOUNT_AGE` is a service policy, not a universal consent age; parental-consent verification is not implemented.
+
+Run `npm run check` and `E2E_PRODUCTION=true npm run test:e2e` for code, policy, accessibility, privacy, account and theater checks. Use only local fixture infrastructure for these tests. No merge or public deployment is performed without approval.

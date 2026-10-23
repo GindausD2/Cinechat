@@ -1,6 +1,8 @@
 import { requestRegion } from "@/lib/request-region";
-import Image from "next/image";
+import { PrivacyImage as Image } from "@/components/privacy-image";
 import Link from "next/link";
+import { authorizedTrailer } from "@/lib/authorized-trailers";
+import { AuthorizedTrailer } from "@/components/authorized-trailer";
 import { notFound } from "next/navigation";
 import { Play, Users, ArrowLeft, ExternalLink, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
@@ -44,7 +46,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </section>
     <div className="detail-content">
       <div className="detail-facts"><div><h2>Cast & creators</h2><p>{movie.cast.join(" · ")}</p></div><div><h2>Subtitles</h2><p>{data.subtitles.length ? data.subtitles.map(track => track.label).join(" · ") : "No subtitle tracks supplied"}</p></div><div><h2>Genres</h2><p>{movie.genres.join(" · ")}</p></div><div><h2>Film project</h2><a href={movie.metadataSource} target="_blank" rel="noreferrer" className="subtle-link">Official project <ExternalLink size={12} className="inline" /></a><Link href="/legal#artwork" className="subtle-link">Artwork credits</Link></div></div>
-      {movie.trailerUrl && <section className="trailer-section"><h2>Official trailer</h2><video controls muted preload="none" src={movie.trailerUrl} poster={backdrop} className="trailer-video" aria-label={`${movie.title} authorized trailer`} /><small className="muted">Sintel © Blender Foundation. Official trailer, CC BY 3.0.</small></section>}
+      {(() => { const trailer = authorizedTrailer(movie, viewerRegion, ageAt(user?.profile?.birthDate || null)); return trailer ? <AuthorizedTrailer trailer={trailer} title={movie.title} /> : null; })()}
       <section aria-labelledby="parties-title"><div className="section-header"><h2 id="parties-title">Watch it together</h2><Link href="/cinemas">All cinemas <ArrowRight size={14} /></Link></div><TheaterLobby initial={parties} scope="public" upcoming={false} signedIn={Boolean(user)} movieId={id} limit={3} /></section>
       {related.length > 0 && <section aria-labelledby="related-title"><div className="section-header"><h2 id="related-title">More like this</h2></div><MovieRail movies={related.map(item => movieSummary(item, region))} /></section>}
       {data.available && <div className="rights-note"><span className="pill">{data.license}</span>{movie.sources.filter(source => source.authorized && source.enabled).map(source => <p key={source.id}>{filmAttribution(source.attribution)} <a href={source.rightsUrl} target="_blank" rel="noreferrer">License & rights</a></p>)}</div>}

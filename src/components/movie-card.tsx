@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { PrivacyImage as Image } from "@/components/privacy-image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { posterFor, backdropFor } from "@/lib/artwork";

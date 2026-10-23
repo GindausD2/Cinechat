@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 test.afterAll(async () => prisma.$disconnect());
 test("friendships, following, clubs, privacy, notifications and admin authorization", async ({ browser }) => {
   const suffix = Date.now().toString(36); const aContext = await browser.newContext(), bContext = await browser.newContext(); const a = await aContext.newPage(), b = await bContext.newPage();
-  const aId = await accountViaApi(a, `sociala_${suffix}`), bId = await accountViaApi(b, `socialb_${suffix}`);
+  const aId = await accountViaApi(a, `sociala_${suffix}`, { discoverable: true }), bId = await accountViaApi(b, `socialb_${suffix}`, { discoverable: true });
   const headers = { origin: "http://localhost:3000" };
   let r = await a.request.post("/api/community", { headers, data: { action: "follow", targetId: bId } }); expect(r.ok()).toBe(true);
   r = await a.request.post("/api/community", { headers, data: { action: "request", targetId: bId } }); expect(r.ok()).toBe(true);

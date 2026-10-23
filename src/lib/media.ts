@@ -1,5 +1,6 @@
 import type { MediaSource, Movie } from "@prisma/client";
 import { AppError } from "./security";
+import { minimumAccountAge } from "./privacy";
 export function sourceAllowed(source: MediaSource, region: string, now = new Date()) {
   if (!source.authorized || !source.enabled || !source.rightsUrl || !source.license) return false;
   if (source.validFrom > now || (source.validUntil && source.validUntil <= now)) return false;
@@ -18,7 +19,7 @@ export function subtitleTracksFor(source: MediaSource & { subtitles?: Subtitle[]
   return tracks.filter(track => sourceAllowed({ ...source, url: track.url }, source.regions[0] || process.env.REGION_DEFAULT || "US"));
 }
 export function playableSource<T extends MediaSource>(movie: Movie & { sources: T[] }, region: string, age: number): T {
-  if (age < movie.minAge) throw new AppError(403, "Complete your birth date in account settings, or choose an age-appropriate film.");
+  if (age < Math.max(movie.minAge, minimumAccountAge())) throw new AppError(403, "Complete your birth date in account settings, or choose an age-appropriate film.");
   const source = movie.sources.find(s => sourceAllowed(s, region));
   if (!source) throw new AppError(451, "This film is not available to play in your region. You can still explore its details.");
   return source;

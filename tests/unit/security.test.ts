@@ -3,7 +3,7 @@ import { ageAt, hashToken, randomToken, requireOrigin } from "@/lib/security";
 import { signupSchema, messageSchema } from "@/lib/validation";
 describe("authentication and validation boundaries", () => {
   it("requires age 13, long passwords and safe usernames", () => {
-    const input = { email: "viewer@example.com", password: "long-secure-password", username: "viewer", birthDate: "1990-01-01" };
+    const input = { email: "viewer@example.com", password: "long-secure-password", username: "viewer", birthDate: "1990-01-01", acceptTerms: true, acknowledgePrivacy: true, ageEligible: true };
     expect(signupSchema.safeParse(input).success).toBe(true);
     expect(signupSchema.safeParse({ ...input, birthDate: "2025-01-01" }).success).toBe(false);
     expect(signupSchema.safeParse({ ...input, password: "short" }).success).toBe(false);

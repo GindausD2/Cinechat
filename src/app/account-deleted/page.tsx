@@ -1,0 +1,3 @@
+import Link from "next/link";
+export const metadata = { title: "Account deletion confirmation", robots: { index: false, follow: false } };
+export default function Deleted() { return <section className="page-container legal-copy"><h1>Account deletion complete.</h1><p>If you arrived here after confirming deletion, your CineChat account and associated application data were removed. Your session is signed out. The deleted account cannot be restored.</p><p>Copies already received by others and infrastructure backups/logs are explained in the <Link href="/legal/privacy">Privacy Policy</Link>. No subscription or payment remains to cancel.</p><Link href="/" className="button button-glass">Return to CineChat</Link></section>; }

@@ -22,21 +22,21 @@ export const POST = api(async request => {
     for (const room of shared) await publishRoomEvent({ roomId: room.roomId, type: "refresh" });
     return { saved: true };
   }
-  const target = await relationshipAllowed(user.id, targetId);
+  const target = await relationshipAllowed(user.id, targetId, ["follow", "request", "accept"].includes(action));
   if (action === "follow") {
     if (!target.profile?.publicProfile) throw new AppError(403, "This profile is private.");
     await db.follow.upsert({ where: { followerId_followingId: { followerId: user.id, followingId: targetId } }, create: { followerId: user.id, followingId: targetId }, update: {} });
-    await notify(targetId, "follow", `${user.name} started following you`, `/profile/${user.profile?.username}`, `follow:${user.id}:${targetId}`);
+    await notify(targetId, "follow", `${user.name} started following you`, `/profile/${user.profile?.username}`, `follow:${user.id}:${targetId}`, user.id);
   } else if (action === "unfollow") await db.follow.deleteMany({ where: { followerId: user.id, followingId: targetId } });
   else if (action === "request") {
     if (!target.profile?.allowFriendRequests) throw new AppError(403, "This user is not accepting friend requests.");
     const existing = await db.friendship.findFirst({ where: { OR: [{ senderId: user.id, receiverId: targetId }, { senderId: targetId, receiverId: user.id }] } });
     if (!existing) await db.friendship.create({ data: { senderId: user.id, receiverId: targetId } });
-    await notify(targetId, "friend-request", `${user.name} sent you a friend request`, "/community", `friend:${user.id}:${targetId}`);
+    await notify(targetId, "friend-request", `${user.name} sent you a friend request`, "/community", `friend:${user.id}:${targetId}`, user.id);
   } else if (action === "accept") {
     const result = await db.friendship.updateMany({ where: { senderId: targetId, receiverId: user.id, status: "PENDING" }, data: { status: "ACCEPTED" } });
     if (!result.count) throw new AppError(404, "Friend request not found.");
-    await notify(targetId, "friend-accepted", `${user.name} accepted your friend request`, "/community");
+    await notify(targetId, "friend-accepted", `${user.name} accepted your friend request`, "/community", undefined, user.id);
   } else if (action === "decline") await db.friendship.deleteMany({ where: { senderId: targetId, receiverId: user.id, status: "PENDING" } });
   else await db.friendship.deleteMany({ where: { OR: [{ senderId: user.id, receiverId: targetId }, { senderId: targetId, receiverId: user.id }] } });
   return { saved: true };

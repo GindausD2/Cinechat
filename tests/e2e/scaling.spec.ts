@@ -30,6 +30,7 @@ test("100 authenticated viewers span two workers with unique presence, isolated 
   try {
     const created = await page.request.post("/api/rooms", { headers, data: {title:"Worldwide concurrency check",movieId:"big-buck-bunny",visibility:"PUBLIC",capacity:250,theme:"midnight"} }); expect(created.ok()).toBe(true); roomId=(await created.json()).id;
     await db.user.createMany({data:actors}); await db.profile.createMany({data:actors.map(a=>({userId:a.id,username:a.name,birthDate:new Date("1990-01-01")}))});
+    await db.policyAcceptance.createMany({ data: actors.map(a => ({ userId: a.id, version: "2026-10-22" })) }); // Explicit synthetic acceptance fixtures.
     // Ten users authenticate normally and join concurrently through HTTP; the
     // other 90 are explicit audience fixtures for the real socket fanout test.
     for (const actor of actors.slice(0,10)) apis.push(await authenticatedApi(actor.email));

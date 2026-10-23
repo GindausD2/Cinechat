@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { randomUUID } from "node:crypto";
 import { AppError } from "./security";
 import { messageSchema, messageDeleteSchema, playbackSchema, reactionSchema } from "./validation";
 import { roomAccess } from "./rooms";
@@ -50,7 +51,8 @@ export async function deleteMessage(roomId: string, userId: string, raw: unknown
   if (!message) throw new AppError(404, "Message not found in this theater.");
   if (message.userId !== userId && room.hostId !== userId) throw new AppError(403, "You can delete your own messages. Hosts can moderate this theater.");
   await db.$transaction(async tx => {
-    const result = await tx.chatMessage.updateMany({ where: { id: messageId, roomId, deleted: false }, data: { deleted: true } });
+    const result = await tx.chatMessage.updateMany({ where: { id: messageId, roomId, deleted: false }, data: { deleted: true, body: "" } });
+    if (!result.count) await tx.chatMessage.updateMany({ where: { id: messageId, roomId, deleted: true, body: { not: "" } }, data: { body: "" } });
     if (result.count) await tx.moderationAction.create({ data: { actorId: userId, targetId: messageId, action: message.userId === userId ? "message:delete-own" : "message:moderate", reason: `Message removed in private theater ${roomId}` } });
   });
   await publishRoomEvent({ roomId, type: "message-delete", data: { id: messageId, userId: message.userId } });
@@ -64,7 +66,8 @@ export async function sendReaction(roomId: string, userId: string, raw: unknown)
   await rateLimit(`reaction:${userId}`, 10, 10);
   await rateLimit(`reaction-room:${roomId}`, 200, 10);
   if (input.messageId && !await db.chatMessage.findFirst({ where: { id: input.messageId, roomId, deleted: false } })) throw new AppError(404, "Message not found in this cinema.");
-  const row = input.messageId ? await db.reaction.upsert({ where: { userId_messageId_emoji: { userId, messageId: input.messageId, emoji: input.emoji } }, create: { roomId, userId, ...input }, update: {} }) : await db.reaction.create({ data: { roomId, userId, emoji: input.emoji } });
+  // Floating cinema reactions have no history. Keep only private message likes.
+  const row = input.messageId ? await db.reaction.upsert({ where: { userId_messageId_emoji: { userId, messageId: input.messageId, emoji: input.emoji } }, create: { roomId, userId, ...input }, update: {} }) : { id: randomUUID(), emoji: input.emoji, messageId: null };
   const reaction = { id: row.id, userId, emoji: row.emoji, messageId: row.messageId };
   await publishRoomEvent({ roomId, type: "reaction", data: reaction }); return reaction;
 }

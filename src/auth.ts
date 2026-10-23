@@ -12,7 +12,15 @@ import { requiredSecret } from "@/lib/env";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   secret: requiredSecret("AUTH_SECRET"),
-  adapter: PrismaAdapter(db),
+  adapter: {
+    ...PrismaAdapter(db),
+    // Sign-in uses provider identity only; CineChat never calls Google APIs.
+    // Avoid retaining Google access/refresh/ID tokens or unnecessary scopes.
+    async linkAccount(account) {
+      const { userId, type, provider, providerAccountId } = account;
+      await db.account.create({ data: { userId, type, provider, providerAccountId } });
+    }
+  },
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 14 },
   pages: { signIn: "/login" },
   events: {

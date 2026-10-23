@@ -53,7 +53,7 @@ jobs:
       - run: npm run test:mobile
         env:
           E2E_PRODUCTION: "true"
-      - run: npm audit --omit=dev
+      - run: npm audit
       - uses: actions/upload-artifact@v4
         if: always()
         with:

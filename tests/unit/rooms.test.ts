@@ -12,6 +12,7 @@ describe("room limits and creation input", () => {
     expect(createRoomSchema.safeParse({ ...input, visibility: "PUBLIC", capacity: 1000, theme: "blue" }).success).toBe(true);
     expect(createRoomSchema.safeParse({ ...input, capacity: 51 }).success).toBe(false);
     expect(createRoomSchema.safeParse({ ...input, accessCode: "123" }).success).toBe(false);
+    expect(createRoomSchema.safeParse({ ...input, accessCode: "🔥".repeat(19) }).success).toBe(false);
     expect(createRoomSchema.safeParse({ ...input, capacity: 1001 }).success).toBe(false);
     expect(createRoomSchema.safeParse({ ...input, title: " " }).success).toBe(false);
   });

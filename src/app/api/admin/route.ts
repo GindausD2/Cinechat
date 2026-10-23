@@ -31,7 +31,7 @@ export const POST = api(async request => {
     await publishRoomEvent({ roomId: input.roomId, type: "ended" });
   } else if (input.action === "review-report") {
     const report = await db.report.findUnique({ where: { id: input.reportId } }); if (!report) throw new AppError(404, "Report not found.");
-    await db.$transaction(async tx => { await tx.report.update({ where: { id: report.id }, data: { status: input.status } }); if (input.deleteMessage && report.messageId) await tx.chatMessage.update({ where: { id: report.messageId }, data: { deleted: true } }); await tx.moderationAction.create({ data: { actorId: admin.id, targetId: report.id, action: `report:${input.status.toLowerCase()}`, reason: input.reason } }); });
+    await db.$transaction(async tx => { await tx.report.update({ where: { id: report.id }, data: { status: input.status } }); if (input.deleteMessage && report.messageId) await tx.chatMessage.update({ where: { id: report.messageId }, data: { deleted: true, body: "" } }); await tx.moderationAction.create({ data: { actorId: admin.id, targetId: report.id, action: `report:${input.status.toLowerCase()}`, reason: input.reason } }); });
     if (report.roomId) await publishRoomEvent({ roomId: report.roomId, type: "refresh" });
   } else if (input.action === "disable-source") {
     await db.$transaction([db.mediaSource.update({ where: { id: input.sourceId }, data: { enabled: false } }), db.moderationAction.create({ data: { actorId: admin.id, targetId: input.sourceId, action: "disable-source", reason: input.reason } })]);

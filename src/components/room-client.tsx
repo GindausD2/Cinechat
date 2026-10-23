@@ -16,7 +16,7 @@ import { ScreeningTime } from "./screening-time";
 type RoomData = Awaited<ReturnType<typeof roomSnapshot>>;
 type Message = RoomData["messages"][number];
 type Ack = { ok: boolean; data?: unknown; error?: string; status?: number };
-type Reaction = { id: string; emoji: string; userId: string; messageId: string | null; expiresAt: number };
+type Reaction = { id: string; emoji: string; userId?: string; messageId: string | null; expiresAt: number };
 export function RoomClient({ initial, viewerId, autoInvite = false }: { initial: RoomData; viewerId: string; autoInvite?: boolean }) {
   const [room, setRoom] = useState(initial), [connected, setConnected] = useState(false), [messages, setMessages] = useState(initial.visibility === "PRIVATE" ? initial.messages : []), [text, setText] = useState(""), [error, setError] = useState(""), [chatOpen, setChatOpen] = useState(true), [tab, setTab] = useState("chat"), [inviteOpen, setInviteOpen] = useState(false), [viewersOpen, setViewersOpen] = useState(false), [invite, setInvite] = useState(""), [inviteId, setInviteId] = useState(""), [copied, setCopied] = useState(false), [online, setOnline] = useState<string[]>([]), [reactions, setReactions] = useState<Reaction[]>([]), [report, setReport] = useState<string | null | false>(false), [removed, setRemoved] = useState(""), [clockOffset, setClockOffset] = useState(0);
   const socket = useRef<Socket | null>(null), playback = useRef(initial.playback), end = useRef<HTMLDivElement>(null); const router = useRouter(); const host = room.canManage;
@@ -28,6 +28,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
   const [inviteRecords, setInviteRecords] = useState<{ id: string; expiresAt: string; uses: number; maxUses: number; revoked: boolean }[]>([]);
   const updatePlayback = (next: ClientPlayback) => { if (next.version < playback.current.version) return; playback.current = next; setRoom(old => ({ ...old, playback: next })); };
   useEffect(() => {
+    if (removed) return;
     let disposed = false, connecting = false, ticketExpiresAt = 0, retryDelay = 5000;
     let connection: Socket | null = null, retry: ReturnType<typeof setTimeout> | undefined;
     async function connect() {
@@ -77,7 +78,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     const renew = setInterval(() => { ticketExpiresAt = 0; void connect(); }, 2700000);
     return () => { disposed = true; clearTimeout(retry); clearInterval(sync); clearInterval(renew); window.removeEventListener("offline", offline); window.removeEventListener("online", online); connection?.disconnect(); socket.current = null; };
     // A room owns one connection; all live state arrives through socket events.
-  }, [initial.id, initial.visibility]);
+  }, [initial.id, initial.visibility, removed]);
   useEffect(() => {
     if (!viewersOpen || !participantsDirty) return;
     const controller = new AbortController();
@@ -132,6 +133,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
   async function reportSubmit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); try { const data = Object.fromEntries(new FormData(event.currentTarget)); const response = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId: room.id, messageId: report || undefined, ...data }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setReport(false); setError("Report submitted for review."); } catch (e) { setError(e instanceof Error ? e.message : "Report failed."); } }
   if (removed) return <div className="empty-state"><h1>Intermission.</h1><p>{removed}</p><Link href="/cinemas" className="button button-primary">Back to cinemas</Link></div>;
   const participantList = <div className="participants">
+    {!privateTheater && <p className="muted">Viewer identities are shown only when public activity is shared, or to screening moderators.</p>}
     {room.participants.map(p => <div className="participant" key={p.id}>
       <Avatar name={p.name} image={p.image} />
       <div><Link href={`/profile/${p.name}`}><strong>{p.name}</strong></Link>
@@ -154,7 +156,12 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
         {privateTheater && host && <GlassButton variant="primary" onClick={makeInvite}><Link2 size={15} />Invite Friends</GlassButton>}
         {privateTheater && <GlassButton onClick={() => setChatOpen(!chatOpen)} aria-label={chatOpen ? "Collapse chat" : "Open chat"} aria-expanded={chatOpen}><MessageSquare size={15} /></GlassButton>}
         {(!privateTheater || !chatOpen) && <GlassButton onClick={() => setViewersOpen(true)} aria-label="Viewers" aria-haspopup="dialog"><Users size={15} />Viewers</GlassButton>}
-        <GlassButton onClick={async () => { try { await roomAction({ action: "leave" }); router.push("/cinemas"); } catch (e) { setError(e instanceof Error ? e.message : "Unable to leave."); } }}><LogOut size={15} />Leave</GlassButton>
+        <GlassButton onClick={() => {
+          // Leaving the screen must work even if the API or connection is down.
+          socket.current?.disconnect(); setRemoved("You left this theater.");
+          void fetch(`/api/rooms/${room.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }), keepalive: true }).catch(() => {});
+          if (navigator.onLine) router.push("/cinemas");
+        }}><LogOut size={15} />Leave</GlassButton>
       </div>
     </div>
     {room.scheduledAt && <div className="glass-card mb-6"><p className="muted">Scheduled for <ScreeningTime value={new Date(room.scheduledAt).toISOString()} /></p><ReminderButton roomId={room.id} /></div>}
@@ -178,7 +185,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
         <div className="chat-tabs"><button className={tab === "chat" ? "active" : ""} aria-pressed={tab === "chat"} onClick={() => setTab("chat")}>Chat</button><button className={tab === "people" ? "active" : ""} aria-pressed={tab === "people"} onClick={() => setTab("people")}><Users size={12} />People ({room.participants.length})</button></div>
         {tab === "chat" ? <>
           <div className="chat-messages">
-            {!messages.length && <div className="chat-welcome"><MessageSquare size={23} /><h3>Your guests. Your conversation.</h3><p>Only members of this private theater can read these messages.</p></div>}
+            {!messages.length && <div className="chat-welcome"><MessageSquare size={23} /><h3>Your guests. Your conversation.</h3><p>Chat is shared with authorized members. Administrators may review reported content.</p></div>}
             {messages.map(m => <article className="chat-message" key={m.id}>
               <Avatar name={m.name} image={m.image} />
               <div>
@@ -189,7 +196,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
             <div ref={end} />
           </div>
           <form className="chat-compose" onSubmit={send}><input value={text} onChange={e => setText(e.target.value)} maxLength={1000} placeholder="Share a thought…" aria-label="Chat message" disabled={!connected} /><button aria-label="Send message" disabled={!text.trim() || !connected || sending}><Send size={16} /></button></form>
-          <p className="chat-guideline">A private conversation. Keep it kind.</p>
+          <p className="chat-guideline">Members can read and copy messages. Avoid personal details. <Link href="/legal/safety">Safety & reporting</Link></p>
         </> : participantList}
       </GlassChatPanel>}
     </div>

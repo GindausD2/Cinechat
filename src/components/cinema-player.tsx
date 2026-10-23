@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Captions, LoaderCircle, Eye, EyeOff } from "lucide-react";
 import Hls from "hls.js";
+import { useCookiePreferences } from "./cookie-preferences";
+import { isLocalImage, isExternalImage } from "@/lib/cookie-preferences";
 import type { Subtitle } from "@/lib/media";
 import { driftCorrection } from "@/lib/playback";
 import { GlassPlayerControls } from "./glass";
@@ -95,8 +97,10 @@ export function CinemaPlayer({ media, playback, canControl, onControl, movieId, 
     if (canControl) onControl(playback.playing ? "pause" : "play", video.current?.currentTime ?? position);
     else if (playback.playing) void video.current?.play().catch(playFailure);
   }
-  // eslint-disable-next-line jsx-a11y/media-has-caption -- Authorized subtitle tracks render conditionally; controls are shown only when a real track exists.
-  return <div className={`player-shell ${expanded ? "is-expanded" : ""} ${controlsVisible ? "" : "controls-hidden"}`} ref={shell}><video ref={video} data-testid="cinema-video" poster={poster} crossOrigin="anonymous" muted={muted} playsInline preload="metadata" onTimeUpdate={onTimeUpdate} onLoadedMetadata={restoreTimeline} onLoadStart={() => setBuffering(true)} onWaiting={() => setBuffering(true)} onCanPlay={() => { setBuffering(false); restoreTimeline(); }} onPlaying={() => { setBuffering(false); setError(current => current.startsWith("Your browser needs") ? "" : current); }} onError={() => { setBuffering(false); setError("The media could not be loaded. Check the source or try again."); }} onEnded={() => { if (canControl) onControl("pause", playback.duration); }} aria-label="Cinema video">{subtitleTracks.map(track => <track key={`${track.language}-${track.url}`} kind="subtitles" src={track.url} srcLang={track.language} label={track.label} onLoad={() => { const element = video.current; if (element) for (const textTrack of element.textTracks) textTrack.mode = textTrack.language === activeLanguage ? "showing" : "disabled"; }} />)}</video>
+  const { externalImages } = useCookiePreferences();
+  const safePoster = poster && (isLocalImage(poster) || (externalImages && isExternalImage(poster))) ? poster : undefined;
+  // eslint-disable-next-line jsx-a11y/media-has-caption -- Render caption tracks only when the authorized source supplies them.
+  return <div className={`player-shell ${expanded ? "is-expanded" : ""} ${controlsVisible ? "" : "controls-hidden"}`} ref={shell}><video ref={video} data-testid="cinema-video" poster={safePoster} crossOrigin="anonymous" muted={muted} playsInline preload="metadata" onTimeUpdate={onTimeUpdate} onLoadedMetadata={restoreTimeline} onLoadStart={() => setBuffering(true)} onWaiting={() => setBuffering(true)} onCanPlay={() => { setBuffering(false); restoreTimeline(); }} onPlaying={() => { setBuffering(false); setError(current => current.startsWith("Your browser needs") ? "" : current); }} onError={() => { setBuffering(false); setError("The media could not be loaded. Check the source or try again."); }} onEnded={() => { if (canControl) onControl("pause", playback.duration); }} aria-label="Cinema video">{subtitleTracks.map(track => <track key={`${track.language}-${track.url}`} kind="subtitles" src={track.url} srcLang={track.language} label={track.label} onLoad={() => { const element = video.current; if (element) for (const textTrack of element.textTracks) textTrack.mode = textTrack.language === activeLanguage ? "showing" : "disabled"; }} />)}</video>
     {!playback.playing && !buffering && <button aria-label={canControl ? "Play film" : "Waiting for host"} className="center-play" onClick={toggle} disabled={!canControl}><Play size={28} fill="currentColor" /></button>}
     {buffering && <div className="player-loading" role="status"><LoaderCircle size={28} className="spin" /><span>Finding your frame…</span></div>}
     {error && <div className="player-error" role="alert">{error}<button onClick={error.startsWith("Your browser needs") ? allowPlayback : reload}>{error.startsWith("Your browser needs") ? "Tap to Start Watching" : "Reload media"}</button></div>}

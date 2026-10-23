@@ -8,6 +8,7 @@ export function api(handler: (request: Request) => Promise<unknown>) {
       if (!["GET", "HEAD"].includes(request.method)) requireOrigin(request);
       if (Number(request.headers.get("content-length") || 0) > 16384) throw new AppError(413, "Request too large.");
       const result = await handler(request);
+      if (result instanceof Response) return result;
       return Response.json(result, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       if (error instanceof AppError) return Response.json({ error: error.message }, { status: error.status });

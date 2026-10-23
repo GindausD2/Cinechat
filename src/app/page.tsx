@@ -1,6 +1,6 @@
 import { requestRegion } from "@/lib/request-region";
 import { ScreeningTime } from "@/components/screening-time";
-import Image from "next/image";
+import { PrivacyImage as Image } from "@/components/privacy-image";
 import Link from "next/link";
 import { ArrowRight, Play, Users, ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
@@ -44,15 +44,15 @@ export default async function Page() {
           {hero.available && <Link href={user ? `/watch/${hero.id}` : "/login"} className="button button-primary"><Play size={17} fill="currentColor" />Watch now</Link>}
           {hero.available && <Link href={`/cinemas/new?movie=${hero.id}`} className="button button-glass"><Users size={18} />Watch together</Link>}
         </div>
-        <div className="hero-credit">A Blender Foundation open film · <Link href={`/movies/${hero.id}`}>Film details</Link></div>
+        <div className="hero-credit">{hero.metadataProvider === "curated" && ["big-buck-bunny", "sintel", "tears-of-steel", "elephants-dream", "cosmos-laundromat", "caminandes"].includes(hero.id) ? "A Blender Foundation open film" : "From the CineChat catalog"} · <Link href={`/movies/${hero.id}`}>Film details</Link></div>
       </div>
       <Link href={`/movies/${hero.id}`} className="hero-caption">Discover the story <ArrowUpRight size={15} /></Link>
     </section>}
-    <div className="home-content">
-      <section aria-labelledby="trending-title"><div className="section-header"><h2 id="trending-title">Trending movies</h2><Link href="/movies">View all <ArrowRight size={14} /></Link></div><MovieRail movies={ranked} /></section>
+    <div className="home-content"><p className="catalog-disclosure muted">Curated open-film starter catalog. Playback availability varies by source and country. <Link href="/legal#artwork">Licenses & credits</Link></p>
+      <section aria-labelledby="trending-title"><div className="section-header"><h2 id="trending-title">{ranked.some(movie => movie._count.watchlists + movie._count.rooms > 0) ? "Trending movies" : "From the collection"}</h2><Link href="/movies">View all <ArrowRight size={14} /></Link></div><MovieRail movies={ranked} /></section>
       <nav className="genre-links" aria-label="Browse by genre">{["Animation", "Adventure", "Comedy", "Drama", "Fantasy", "Sci-Fi"].map(genre => <Link key={genre} href={`/movies?genre=${encodeURIComponent(genre)}`}>{genre}</Link>)}</nav>
       {history.length > 0 && <section aria-labelledby="continue-title"><div className="section-header"><h2 id="continue-title">Continue watching</h2><Link href="/watchlist">My List <ArrowRight size={14} /></Link></div><div className="continue-rail">{history.map(item => <ContinueWatchingCard key={item.movieId} movie={movieSummary(item.movie, region)} position={item.position} />)}</div></section>}
-      <section aria-labelledby="popular-title"><div className="section-header"><h2 id="popular-title">Popular this week</h2><Link href="/movies">Browse movies <ArrowRight size={14} /></Link></div><MovieFeatureRail movies={[...summaries].sort((a,b) => (b._count?.history || 0) - (a._count?.history || 0))} /></section>
+      <section aria-labelledby="popular-title"><div className="section-header"><h2 id="popular-title">{summaries.some(movie => movie._count.history > 0) ? "Popular this week" : "Open film highlights"}</h2><Link href="/movies">Browse movies <ArrowRight size={14} /></Link></div><MovieFeatureRail movies={[...summaries].sort((a,b) => (b._count?.history || 0) - (a._count?.history || 0))} /></section>
       <section aria-labelledby="live-title"><div className="section-header"><h2 id="live-title">Public Theater</h2><Link href="/cinemas">Explore cinemas <ArrowRight size={14} /></Link></div><TheaterLobby initial={publicRooms} scope="public" upcoming={false} signedIn={Boolean(user)} limit={3} liveOnly /></section>
       <section className="private-theater-intro" aria-labelledby="home-private-theater"><div><span className="eyebrow">A SCREENING FOR YOUR FRIENDS</span><h2 id="home-private-theater">Private Theater</h2><p className="muted">A film, your friends, and a conversation just for you. No subscriptions or payments.</p></div><Link href="/cinemas/new?type=private" className="button button-primary">Create Private Theater</Link></section>
       <section className="editorial-banner" aria-labelledby="community-title"><div className="editorial-copy"><span className="eyebrow">THE CONVERSATION CONTINUES</span><h2 id="community-title">Find your people.<br />Share your kind of cinema.</h2><p>From animation enthusiasts to late-night film lovers, there’s a conversation waiting for you.</p><Link href="/clubs" className="button button-glass">Explore movie clubs <ArrowUpRight size={15} /></Link></div><div className="editorial-image"><Image src="/art/films/elephants-still.webp" alt="Emo and Proog in Elephants Dream" fill sizes="(max-width: 700px) 100vw, 45vw" /><small>Elephants Dream · Blender Foundation · CC BY 2.5</small></div></section>
