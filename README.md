@@ -10,6 +10,11 @@ preference persists across reloads and tabs. The premium design, changed-file
 inventory, artwork licenses, and inspected screenshots are documented in
 [the redesign report](docs/REDESIGN.md).
 
+The current responsive audit, browser matrix, screenshots and device limitations
+are in [RESPONSIVE.md](docs/RESPONSIVE.md) and [ADAPTIVE.md](docs/ADAPTIVE.md). Scheduled waiting rooms, persistent
+reminders and viewing-history changes are recorded in
+[V1-FINISHING.md](docs/V1-FINISHING.md).
+
 Public theaters provide synchronized movies, live viewers, and seven temporary
 emoji reactions only. Text chat is restricted to authorized private-theater
 members. Everyone can create a private theater. Administrators create and schedule
@@ -77,19 +82,23 @@ npm run media:hls-fixture
 # Exercise the compiled app, two WebSocket workers and a loopback-only SMTP receiver:
 E2E_PRODUCTION=true npm run test:e2e
 E2E_PRODUCTION=true npm run test:mobile
+E2E_PRODUCTION=true npm run test:responsive
 npm audit
 ```
 
 Playwright starts local web, two realtime workers and media services. It requires PostgreSQL,
-Redis, seeded catalog, downloaded licensed sample, Chromium and WebKit:
-`npx playwright install --with-deps chromium webkit`. The separate mobile command
+Redis, seeded catalog, downloaded licensed sample, Chromium, WebKit and Firefox:
+`npx playwright install --with-deps chromium webkit firefox`. The separate mobile command
 uses Android/Chromium and iPhone/WebKit emulation; it does not test physical phones. Browser tests create local test users and data;
 never point the test configuration at a production database. CI runs migrations,
 licensed sample setup, unit tests, production build, and browser acceptance tests
 against that build. Production browser tests configure a local SMTP receiver for
 synthetic test addresses; the app’s production email safeguards stay enabled.
 Design tests also run automated WCAG checks and save captures in
-`test-results/redesign/`, `test-results/theaters/`, and `test-results/completion/`. CI retains browser reports
+`test-results/redesign/`, `test-results/theaters/`, `test-results/completion/`, and
+`test-results/responsive/`. The responsive suite checks all eleven requested
+widths plus 2560/3440px ultrawide layouts in both themes, long content, 200% text, constrained-height forms, private
+chat, waiting rooms, subtitles and fullscreen focus. Additional tests retain the same player, socket and draft through folding-style resizes and exercise Chromium's native viewport-segment emulation. Physical folding hardware is not certified. CI retains browser reports
 and screenshots for seven days.
 
 ## Features
@@ -111,7 +120,14 @@ and screenshots for seven days.
 - Separate public/private discovery filters with refreshed viewer counts, a
   two-step theater creator, local-time screening dates, and free theater atmospheres.
 - Following, friendship requests/acceptance, clubs, private profiles, notifications
-  and idempotent in-app screening reminders. Private watching activity stays private.
+  and persisted, idempotent in-app screening reminders that recheck private grants
+  at delivery. Private watching activity stays private.
+- Server-timed premiere countdowns and waiting rooms; owner-only viewing history,
+  completed-film replay, and final progress saving when leaving or pausing.
+- Responsive safe-area navigation, reflowing long content, scalable text and compact
+  player settings. Small portrait players place reactions and controls below the
+  film. HLS loads its library on demand for MediaSource quality controls and uses
+  native playback as a fallback; native-only browsers avoid the library.
 - Admin users/rooms/reports, catalog creation, media-rights administration,
   and platform counts.
 - Free access for every account. Legacy billing is isolated and hard disabled;
@@ -138,7 +154,8 @@ and rights could not be verified. See [media research](docs/MEDIA-PROVIDERS.md).
 Browser acceptance includes licensed MP4 and real two-rendition HLS media with
 English/Spanish subtitle cues. The HLS test fixture has 90p/180p variants;
 source rights and quality govern actual film playback. Google OAuth, external SMTP and S3/CDN delivery require operator smoke
-tests. Chromium and WebKit emulation do not replace physical Android/iOS Safari testing.
+tests. Linux Chromium, WebKit and Firefox checks and mobile emulation do not replace
+physical Android/iOS Safari, macOS Safari or Microsoft Edge testing.
 
 Regional restrictions default to `REGION_DEFAULT`. For global licensed delivery,
 configure `TRUSTED_COUNTRY_HEADER` behind a proxy that overwrites that header and

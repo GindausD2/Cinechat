@@ -1,6 +1,7 @@
 import { PrivacyImage as Image } from "@/components/privacy-image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { ScreeningTime } from "./screening-time";
 import { posterFor, backdropFor } from "@/lib/artwork";
 
 export type MovieCardData = { id: string; title: string; year: number; poster: string; genres: string[]; durationSeconds: number; available: boolean };
@@ -29,11 +30,12 @@ export function MovieFeatureRail({ movies }: { movies: MovieCardData[] }) {
     </Link>;
   })}</div>;
 }
-export function ContinueWatchingCard({ movie, position }: { movie: MovieCardData; position: number }) {
+export function ContinueWatchingCard({ movie, position, completed = false, watchedAt }: { movie: MovieCardData; position: number; completed?: boolean; watchedAt?: string }) {
   const remaining = Math.max(0, Math.ceil((movie.durationSeconds - position) / 60));
   const backdrop = backdropFor(movie);
   return <Link href={movie.available ? `/watch/${movie.id}` : `/movies/${movie.id}`} className="continue-card">
     <div className="continue-art"><Image src={backdrop} alt="" fill sizes="(max-width: 700px) 75vw, 30vw" unoptimized={!backdrop.startsWith("/art/films/")} /><span className="continue-progress"><span style={{ width: `${Math.min(100,Math.max(0,position/movie.durationSeconds*100))}%` }} /></span></div>
-    <div><h3>{movie.title}</h3><span>{remaining} min left</span></div>
+    <div className="continue-meta"><h3>{movie.title}</h3><span>{completed ? "Watch again" : `${remaining} min left`}</span></div>
+    {watchedAt && <p className="history-last-watched">{completed ? "Watched" : "Last played"} · <ScreeningTime value={watchedAt} /></p>}
   </Link>;
 }

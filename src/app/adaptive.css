@@ -1,0 +1,88 @@
+/* Actual container space determines the theater columns; the player is never moved in React. */
+.viewport-shell { min-inline-size: 0; scroll-padding-block: calc(var(--header-height,78px) + 12px) calc(var(--mobile-nav-height,0px) + var(--keyboard-overlap,0px) + 16px); }
+main { container: app-content / inline-size; }
+html { scroll-padding-block-end: calc(var(--mobile-nav-height,0px) + var(--keyboard-overlap,0px) + 16px); }
+.cinema-layout { display: flex; flex-wrap: wrap; align-items: stretch; gap: 24px; }
+.cinema-main { flex: 3 1 640px; min-inline-size: 0; }
+.cinema-layout>.glass-chat-panel { flex: 1 1 320px; min-inline-size: 0; }
+.cinema-layout.chat-collapsed>.cinema-main { flex-basis: 100%; }
+.screening-film-details { margin-top: 10px; }
+.screening-film-details summary { cursor: pointer; color: var(--muted); font-size: .8125rem; padding-block: 8px; min-height: 44px; }
+.screening-film-details[open] summary { color: var(--text); }
+.chat-compose input { scroll-margin-block-start: var(--sticky-cinema-height,0px); }
+
+/* Header measurements also work in split windows and in one pane of a dual-screen display. */
+:root[data-navigation-layout="tablet"] .navbar { display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 24px; padding-top: 10px; }
+:root[data-navigation-layout="tablet"] .nav-actions { justify-self: end; }
+:root[data-navigation-layout="tablet"] .desktop-nav { display: flex; grid-column: 1/-1; grid-row: 2; min-height: 44px; height: auto; justify-content: flex-start; flex-wrap: wrap; }
+:root[data-navigation-layout="tablet"] .desktop-nav a { padding-block: 10px 14px; }
+:root[data-navigation-layout="tablet"] .desktop-nav a.active:after { bottom: 7px; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .navbar { display: flex; min-height: 66px; gap: 16px; padding-block: env(safe-area-inset-top,0px) 0; padding-inline: max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px)); }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .brand { gap: 8px; font-size: clamp(18px,1.3125rem,21px); }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .desktop-nav,
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .nav-search { display: none; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .mobile-nav { position: fixed; z-index: 40; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; padding: 8px max(8px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px)); background: var(--glass); border-top: 1px solid var(--glass-line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .mobile-nav a { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 46px; color: var(--muted); font-size: .625rem; text-align: center; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .mobile-nav a.active { color: var(--accent-text); }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) input,
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) textarea,
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) select { font-size: 1rem; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) body { padding-bottom: var(--mobile-nav-height,68px); }
+:root[data-navigation-layout="cover"] .navbar { display: grid; grid-template-columns: minmax(0,1fr); justify-items: center; gap: 0; padding-block: 8px; }
+:root[data-navigation-layout="cover"] .nav-actions { margin: 0; }
+:root[data-keyboard-open="true"] .mobile-nav { visibility: hidden; pointer-events: none; }
+:root[data-keyboard-open="true"] body { padding-bottom: 0; }
+
+/* Inline private chat sits after the picture and film information, never in a mandatory overlay. */
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .cinema-layout { flex-direction: column; gap: 16px; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .cinema-main { display: contents; }
+:root:not([data-cinema-pin="false"]):is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .player-shell:not(:fullscreen):not(.is-expanded) { position: sticky; top: calc(var(--header-height,66px) + 8px); z-index: 5; align-self: stretch; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .glass-chat-panel { flex: none; height: clamp(420px,48dvh,560px); min-height: 420px; max-height: 560px; width: 100%; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .chat-header { padding: 12px 14px; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .chat-messages { min-height: 180px; padding: 12px 14px; overscroll-behavior: contain; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .chat-guideline { padding: 6px 10px; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .cinema-film-info { margin-block: 0; gap: 10px; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .cinema-film-info .eyebrow { display: none; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .cinema-film-info h2 { font-size: 1.0625rem; margin-bottom: 8px; }
+:root[data-keyboard-open="true"] .theater-private .player-shell:not(:fullscreen):not(.is-expanded)>video { height: min(calc(var(--visual-viewport-height,100dvh)*.2),calc(100cqw*.5625)); object-fit: contain; }
+
+/* Segmentation is optional: these rules do not activate without measured browser geometry. */
+:root[data-screen-segments],:root[data-theme][data-screen-segments] { --gutter: var(--screen-gutter); }
+:root[data-screen-segments="horizontal"] main { width: var(--screen-safe-width); margin-inline-start: var(--screen-safe-x); }
+:root[data-screen-segments="horizontal"] .navbar { width: var(--screen-safe-width); margin-inline-start: var(--screen-safe-x); }
+:root[data-screen-segments="horizontal"] footer { width: calc(var(--screen-safe-width) - var(--gutter)*2); margin-inline-start: calc(var(--screen-safe-x) + var(--gutter)); }
+:root[data-screen-segments] .mobile-nav { left: var(--screen-safe-x); right: auto; width: var(--screen-safe-width); bottom: calc(var(--screen-viewport-height) - var(--screen-safe-y) - var(--screen-safe-height)); }
+:root[data-screen-segments] .glass-modal { position: fixed; inset: auto; left: calc(var(--screen-safe-x) + var(--screen-safe-width)/2); top: calc(var(--screen-safe-y) + var(--screen-safe-height)/2); transform: translate(-50%,-50%); margin: 0; width: min(520px,calc(var(--screen-safe-width) - 32px)); max-height: min(calc(var(--screen-safe-height) - 32px),calc(var(--visual-viewport-height,100dvh) - 32px)); }
+:root[data-screen-segments] .cookie-banner { left: calc(var(--screen-safe-x) + 12px); right: auto; width: min(560px,calc(var(--screen-safe-width) - 24px)); bottom: calc(var(--screen-viewport-height) - var(--screen-safe-y) - var(--screen-safe-height) + var(--mobile-nav-height,0px) + 12px); max-height: calc(var(--screen-safe-height) - var(--header-height,78px) - var(--mobile-nav-height,0px) - 24px); overflow: auto; }
+:root[data-screen-segments] .skip-link:focus { top: calc(var(--screen-safe-y) + 12px); left: calc(var(--screen-safe-x) + 12px); }
+:root[data-screen-segments] .player-shell.is-expanded { inset: auto; left: var(--screen-safe-x); top: var(--screen-safe-y); width: var(--screen-safe-width); height: var(--screen-safe-height); }
+
+/* Horizontal folds and unknown segment shapes use one bounded, scrollable pane. */
+:root:is([data-screen-segments="vertical"],[data-screen-segments="isolated"]) body { overflow: hidden; padding: 0; }
+:root:is([data-screen-segments="vertical"],[data-screen-segments="isolated"]) .viewport-shell { position: fixed; left: var(--screen-safe-x); top: var(--screen-safe-y); width: var(--screen-safe-width); height: var(--screen-safe-height); overflow: auto; padding-bottom: var(--mobile-nav-height,0px); }
+
+/* Only sufficiently wide physical panes split video and authorized private chat. */
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] main { width: 100%; margin-inline-start: 0; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-heading,
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .screening-waiting,
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-notice,
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-client>.rights-note { width: var(--screen-column-left); max-width: 100%; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-heading { flex-direction: column; align-items: flex-start; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-layout { display: grid; grid-template-columns: minmax(0,var(--screen-column-left)) var(--screen-column-gap) minmax(0,var(--screen-column-right)); gap: 0; align-items: start; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-main { display: block; grid-column: 1; min-width: 0; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .glass-chat-panel { grid-column: 3; grid-row: 1; min-width: 0; width: 100%; height: clamp(380px,65dvh,650px); min-height: 380px; max-height: 650px; }
+:root[data-screen-segments="horizontal"][data-screen-columns="true"][data-theater-visibility="private"] .cinema-main>.player-shell:not(:fullscreen):not(.is-expanded) { position: relative; top: auto; }
+:root[data-screen-segments]:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .settings-grid,
+:root[data-screen-segments]:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .profile-columns { grid-template-columns: minmax(0,1fr); }
+
+/* A narrow physical pane needs phone-density discovery even on a wide viewport. */
+@container app-content (max-width:700px) {
+  .movie-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 26px 14px; }
+  .room-grid,.home-columns,.settings-grid,.profile-columns,.form-grid,.club-grid,.people-grid,.history-grid,.editorial-banner { grid-template-columns: minmax(0,1fr); }
+  .search-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .genre-select { min-width: 0; }
+  .detail-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .detail-facts>div:first-child { grid-column: 1/-1; }
+  .hero-content { max-width: 100%; padding-inline: var(--gutter); }
+  .hero-content h1 { font-size: clamp(2rem,8cqw,2.5rem); }
+}

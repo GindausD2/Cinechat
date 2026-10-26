@@ -1,6 +1,8 @@
 # Deployment preparation
 
-The latest implementation and verification record is [V1-COMPLETION.md](V1-COMPLETION.md).
+The existing implementation record is [V1-COMPLETION.md](V1-COMPLETION.md).
+Current finishing work and cross-browser evidence are in
+[V1-FINISHING.md](V1-FINISHING.md) and [RESPONSIVE.md](RESPONSIVE.md).
 
 Nothing is deployed publicly. The provided code, migrations, Dockerfile, health
 checks and CI are ready for configured infrastructure and operator review.
@@ -133,7 +135,7 @@ screening-reminder email/push delivery is a future extension.
 No checkout, billing portal, subscription, or paid entitlement is active. Both
 billing POST routes return 503 and `billingConfigured()` always returns false,
 even if legacy flags/keys remain in the environment. No payment secrets are needed.
-Archived handlers live under `src/lib/legacy/`; legacy tables are preserved. New
+Archived handlers are non-executable references under `docs/legacy/`; legacy tables are preserved. New
 registrations do not create subscriptions and old plan values grant no privileges.
 
 Apply migration `20261017000100_free_global_theaters` before rolling out **both**

@@ -5,6 +5,7 @@ import { PrivacyImage as Image } from "@/components/privacy-image";
 import { posterFor } from "@/lib/artwork";
 import { ArrowUpRight, Radio, Lock } from "lucide-react";
 import { ScreeningTime } from "./screening-time";
+import { ScreeningCountdown } from "./screening-countdown";
 import type { TheaterListing, TheaterScope } from "@/lib/theaters";
 
 export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn, movieId, limit = 50, liveOnly = false }: { initial: TheaterListing[]; scope: TheaterScope; upcoming: boolean; ended?: boolean; signedIn: boolean; movieId?: string; limit?: number; liveOnly?: boolean }) {
@@ -29,7 +30,7 @@ export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn
   const visibleRooms = rooms.filter(room => !liveOnly || room.status === "Live").slice(0, limit);
   return <>
     {error && <p role="status" className="muted">{error}</p>}
-    <div className="room-grid">{visibleRooms.map(room => {
+    <div className="room-grid screening-grid">{visibleRooms.map(room => {
       const canEnter = room.status === "Live" || room.status === "Upcoming";
       const className = `room-card screening-card room-card-${room.visibility.toLowerCase()}`;
       const content = <>
@@ -39,6 +40,7 @@ export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn
           <h3>{room.title}</h3><p className="screening-movie">{room.movie.title}</p>
           <p>{room.movie.genres.join(" / ")} · {Math.round(room.movie.durationSeconds / 60)} min</p>
           <p className="screening-schedule"><ScreeningTime value={room.scheduledAt || room.createdAt} /></p>
+          {room.status === "Upcoming" && room.scheduledAt && <p><ScreeningCountdown startsAt={room.scheduledAt} serverTime={room.serverTime} /></p>}
           <p>{room.online} watching · {room.capacity} seats</p>
           <small className="screening-privacy">{room.visibility === "PRIVATE" ? "Invitation only · Chat + reactions" : "Worldwide · Emoji reactions only"}</small>
           {canEnter ? <span className="screening-join">{room.status === "Upcoming" ? "Take a seat" : "Join Theater"}<ArrowUpRight size={16} /></span> : <span className="muted">{room.status === "Ended" ? "Screening finished" : "Not available for your region or age"}</span>}

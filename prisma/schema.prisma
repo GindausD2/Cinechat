@@ -409,6 +409,7 @@ model ScreeningReminder {
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId])
+  @@index([sentAt, roomId])
 }
 
 model Notification {

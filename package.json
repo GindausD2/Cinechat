@@ -27,7 +27,8 @@
     "media:upload": "tsx scripts/upload-media.ts",
     "check:production": "node scripts/check-production.mjs",
     "test:mobile": "playwright test -c playwright.mobile.config.ts",
-    "privacy:cleanup": "tsx scripts/privacy-maintenance.ts"
+    "privacy:cleanup": "tsx scripts/privacy-maintenance.ts",
+    "test:responsive": "playwright test -c playwright.responsive.config.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -37,7 +38,7 @@
     "@prisma/client": "^6.19.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.2",
-    "cinechat-mailer": "npm:nodemailer@^10.1.1",
+    "cinechat-mailer": "npm:nodemailer@10.1.4",
     "dotenv": "^17.2.3",
     "hls.js": "^1.6.13",
     "ioredis": "^5.8.2",
@@ -76,6 +77,9 @@
   },
   "overrides": {
     "@auth/core": "0.41.3",
-    "deepmerge-ts": "^8.0.2"
+    "deepmerge-ts": "^8.0.2",
+    "smtp-server": {
+      "nodemailer": "10.1.4"
+    }
   }
 }

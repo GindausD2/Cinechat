@@ -32,7 +32,7 @@ export async function listTheaters(scope: TheaterScope, userId?: string, upcomin
     const { sources, ...movie } = room.movie;
     const available = sources.some(source => sourceAllowed(source, region, now)) && (options.age === undefined || options.age >= Math.max(movie.minAge, minimumAccountAge()));
     const status = screeningStatus(room, available, now);
-    return { ...room, movie, scheduledAt: room.scheduledAt?.toISOString() || null, endedAt: room.endedAt?.toISOString() || null, createdAt: room.createdAt.toISOString(), status,
+    return { ...room, movie, serverTime: now.getTime(), scheduledAt: room.scheduledAt?.toISOString() || null, endedAt: room.endedAt?.toISOString() || null, createdAt: room.createdAt.toISOString(), status,
       artwork: backdropFor(movie), online: status === "Ended" ? 0 : await onlineCount(room.id) };
   }));
 }

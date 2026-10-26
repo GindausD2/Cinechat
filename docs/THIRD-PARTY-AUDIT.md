@@ -1,4 +1,4 @@
-# Third-party code and data flows — 22–23 October 2026
+# Third-party code and data flows — 22–24 October 2026
 
 This inventory describes code in this repository, not verified vendor contracts or deployment locations. Versions are from the lockfile after the trust improvements. No production services were provisioned or contacted with user credentials.
 
@@ -11,7 +11,7 @@ This inventory describes code in this repository, not verified vendor contracts 
 | ioredis, Socket.IO Redis adapter | 5.11.1 / 8.3.0 | Server-only rate limits, short-lived presence, inter-instance event fanout. | No permanent presence/device profiles. Configure private TLS Redis and restricted network access for launch. |
 | Socket.IO client/server | 4.8.4 | Authenticated theater playback/chat/reactions. | Current membership, tickets, age, region, blocking, host/admin roles rechecked. Public fanout omits actor IDs; private chat remains member-only. |
 | bcryptjs | 3.0.3 | Server-side password and optional theater-code hashing. | Passwords are never stored in readable form; enforce bcrypt's byte limit. |
-| cinechat-mailer (npm alias of nodemailer) | 10.1.1 | Essential verification, reset and requested deletion email via configured SMTP. | Sends email address and account link to operator's SMTP provider. No marketing sender/list or email analytics. Dev outbox is private filesystem-only; production requires SMTP. |
+| cinechat-mailer (npm alias of nodemailer) | 10.1.4 | Essential verification, reset and requested deletion email via configured SMTP. | Sends email address and account link to operator's SMTP provider. No marketing sender/list or email analytics. Dev outbox is private filesystem-only; production requires SMTP. |
 | Hls.js | 1.7.3 | Browser playback of licensed HLS manifests/segments and quality selection. | Media host sees network traffic. Only allowed, authorized, dated, age/region-eligible sources. No DRM bypass or host video relay. |
 | AWS S3 SDK | 3.1151.0 | Server-side upload script for authorized media to configured object storage. | Does not request browser device permissions. Access key is server-only; operator should scope permissions to the media bucket. No public bucket is provisioned by this task. |
 | @fontsource Inter / Montserrat | 5.3.0 / 5.3.0 | Locally hosted typography. | OFL 1.1 notices copied into public/legal/licenses. No Google Fonts calls. |
@@ -38,9 +38,11 @@ Starting `npm audit`: 2 moderate development dependency findings (Vitest and its
 
 No unrelated major-version upgrade or new runtime dependency was introduced. The operator still needs patch monitoring, a deployed-header/cookie scan, provider DPAs/transfer review, least-privilege infrastructure credentials, operational log review and a response process for security disclosures.
 
+The 24 October finishing audit identified three new Nodemailer address-parser advisories, reported as two moderate affected package entries (the application mailer and development SMTP receiver): [nested comments](https://github.com/advisories/GHSA-8c8m-p3m8-cjg8), [quoted semicolons](https://github.com/advisories/GHSA-m943-m63m-w62w), and [quoted angle brackets](https://github.com/advisories/GHSA-85x2-q946-cp5h). Both copies were patched from **10.1.1 to 10.1.4**; the existing SMTP test server has a scoped dependency override. No unrelated package was upgraded. The subsequent full audit reports **0 vulnerabilities**. The browser acceptance suite exercises verification, reset and requested deletion through loopback SMTP; external SMTP still needs an operator smoke test.
+
 ## Outdated-package review
 
-`npm outdated --json` was also run on 22 October. The table below records that snapshot, excluding Next.js, which was subsequently patched to 16.4.3 after the new advisories appeared. Available newer versions are not automatically vulnerabilities. Non-vulnerable updates below were left for a separate compatibility change; the demonstrated moderate advisories were fixed. In particular, do not downgrade Auth.js 5 to the registry's stable v4 tag, replace Prisma's database/configuration model, or upgrade the Redis/TypeScript/ESLint major versions as part of a privacy patch. Test infrastructure uses Node 24 types deliberately.
+`npm outdated --json` was also run on 22 October. The table below records that historical snapshot, excluding Next.js, which was subsequently patched to 16.4.3 after the new advisories appeared. The mailer row predates the 24 October patch described above. Available newer versions are not automatically vulnerabilities. Non-vulnerable updates below were left for a separate compatibility change; the demonstrated moderate advisories were fixed. In particular, do not downgrade Auth.js 5 to the registry's stable v4 tag, replace Prisma's database/configuration model, or upgrade the Redis/TypeScript/ESLint major versions as part of a privacy patch. Test infrastructure uses Node 24 types deliberately.
 
 | Package | Current | Wanted within range | Latest tag |
 | --- | --- | --- | --- |
@@ -68,3 +70,7 @@ No unrelated major-version upgrade or new runtime dependency was introduced. The
 | vitest | 4.1.12 | 4.1.12 | 5.0.5 |
 
 Routine React/mail/S3 patches and test-tool updates listed above remain maintenance follow-ups, not claims that those installed versions have known advisories. Auth.js provider login itself remains unverified without Google credentials. Its implemented onboarding boundary requires affirmative policy review before new theater creation/joining, preserves safe invitation return paths, and leaves account export/deletion available without agreement.
+
+## 26 October 2026 recheck
+
+The resumed responsive/foldable work adds no runtime dependency, analytics or device-identification SDK. A fresh full `npm audit` reports zero known vulnerabilities. The existing focused Nodemailer 10.1.4 patch and asset/font boundaries are preserved. An audit snapshot is not a guarantee that dependencies are free of security issues.

@@ -2,6 +2,13 @@
 import { useState, type CSSProperties } from "react";
 import { THEATER_REACTIONS } from "@/lib/reactions";
 
+function revealReaction(button: HTMLButtonElement) {
+  const tray = button.parentElement; if (!tray) return;
+  const target = button.getBoundingClientRect(), bounds = tray.getBoundingClientRect();
+  if (target.right > bounds.right - 4) tray.scrollLeft += target.right - bounds.right + 4;
+  else if (target.left < bounds.left + 4) tray.scrollLeft += target.left - bounds.left - 4;
+}
+
 export function TheaterReactions({ reactions, connected, onReaction }: {
   reactions: { id: string; emoji: string }[];
   connected: boolean;
@@ -18,7 +25,7 @@ export function TheaterReactions({ reactions, connected, onReaction }: {
     <button className="reaction-visibility" type="button" aria-pressed={hidden} onClick={() => setHidden(!hidden)}>{hidden ? "Show reactions" : "Hide reactions"}</button>
     <div className="reaction-bar" role="group" aria-label="Cinema reactions">
       {THEATER_REACTIONS.map(emoji => <button key={emoji} type="button"
-        aria-label={`React ${emoji}`} onClick={() => onReaction(emoji)} disabled={!connected}
+        aria-label={`React ${emoji}`} onFocus={event => revealReaction(event.currentTarget)} onClick={() => onReaction(emoji)} disabled={!connected}
       >{emoji}</button>)}
     </div>
   </div>;

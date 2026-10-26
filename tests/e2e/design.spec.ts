@@ -164,7 +164,16 @@ test("cinema theme controls, chat collapse, viewer list, and public movie partie
       }
       for (const width of [320,360,768,1024]) {
         await page.setViewportSize({width,height:900}); await noOverflow(page);
-        expect(await page.locator(".reaction-bar").evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
+        // Keep 44px targets on narrow phones; overflow stays in the swipeable tray.
+        const reactionButtons = page.getByRole("group",{name:"Cinema reactions"}).getByRole("button"), lastReaction = reactionButtons.last();
+        await reactionButtons.first().focus();
+        for (let index=1;index<7;index++) await page.keyboard.press("Tab");
+        await expect(lastReaction).toBeFocused();
+        const measureReaction = () => lastReaction.evaluate(element => {
+          const target=element.getBoundingClientRect(),bar=element.parentElement!.getBoundingClientRect(),player=element.closest(".player-shell")!.getBoundingClientRect();
+          return { reachable:target.width>=43 && target.height>=43 && target.left>=bar.left-1 && target.right<=bar.right+1 && bar.left>=player.left-1 && bar.right<=player.right+1, target:target.toJSON(), bar:bar.toJSON(), player:player.toJSON() };
+        });
+        await expect.poll(measureReaction,`Last reaction remains reachable at ${width}px after focus scrolling: ${JSON.stringify(await measureReaction())}`).toMatchObject({reachable:true});
       }
       await page.setViewportSize({width:1440,height:1000}); await page.goto("/cinemas/new?movie=big-buck-bunny");
       for (const [device,width,height] of [["desktop",1440,1000],["mobile",390,844]] as const) {

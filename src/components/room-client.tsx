@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { Users, Send, MessageSquare, X, Link2, LogOut, Flag, Lock, Radio, Shield, Check, MicOff, Trash2 } from "lucide-react";
-import { backdropFor, filmAttribution } from "@/lib/artwork";
+import { backdropFor, posterFor, filmAttribution } from "@/lib/artwork";
 import type { roomSnapshot } from "@/lib/rooms";
 import { CinemaPlayer, type ClientPlayback } from "./cinema-player";
 import { GlassButton, GlassChatPanel, GlassModal } from "./glass";
@@ -13,16 +13,30 @@ import { Avatar } from "./avatar";
 import { TheaterReactions } from "./theater-reactions";
 import { REACTION_LIFETIME_MS, THEATER_REACTIONS } from "@/lib/reactions";
 import { ScreeningTime } from "./screening-time";
+import { Countdown, useScreeningClock } from "./screening-countdown";
+import { PrivacyImage } from "./privacy-image";
+import { ScrollRegion } from "./scroll-region";
 type RoomData = Awaited<ReturnType<typeof roomSnapshot>>;
 type Message = RoomData["messages"][number];
 type Ack = { ok: boolean; data?: unknown; error?: string; status?: number };
 type Reaction = { id: string; emoji: string; userId?: string; messageId: string | null; expiresAt: number };
+function scrollChatToLatest(pane: HTMLDivElement | null) { if (pane) pane.scrollTop = pane.scrollHeight; }
 export function RoomClient({ initial, viewerId, autoInvite = false }: { initial: RoomData; viewerId: string; autoInvite?: boolean }) {
   const [room, setRoom] = useState(initial), [connected, setConnected] = useState(false), [messages, setMessages] = useState(initial.visibility === "PRIVATE" ? initial.messages : []), [text, setText] = useState(""), [error, setError] = useState(""), [chatOpen, setChatOpen] = useState(true), [tab, setTab] = useState("chat"), [inviteOpen, setInviteOpen] = useState(false), [viewersOpen, setViewersOpen] = useState(false), [invite, setInvite] = useState(""), [inviteId, setInviteId] = useState(""), [copied, setCopied] = useState(false), [online, setOnline] = useState<string[]>([]), [reactions, setReactions] = useState<Reaction[]>([]), [report, setReport] = useState<string | null | false>(false), [removed, setRemoved] = useState(""), [clockOffset, setClockOffset] = useState(0);
-  const socket = useRef<Socket | null>(null), playback = useRef(initial.playback), end = useRef<HTMLDivElement>(null); const router = useRouter(); const host = room.canManage;
+  const socket = useRef<Socket | null>(null), playback = useRef(initial.playback), messagePane = useRef<HTMLDivElement>(null), messagesPinned = useRef(true); const router = useRouter(); const host = room.canManage;
   const deletedMessages = useRef(new Set<string>()), pendingMessage = useRef<{ body: string; nonce: string } | null>(null);
   const [sending, setSending] = useState(false);
   const privateTheater = room.visibility === "PRIVATE";
+  useEffect(() => {
+    const root = document.documentElement, visibility = initial.visibility.toLowerCase();
+    if (removed) { delete root.dataset.theaterVisibility; return; }
+    root.dataset.theaterVisibility = visibility;
+    return () => { if (root.dataset.theaterVisibility === visibility) delete root.dataset.theaterVisibility; };
+  }, [initial.visibility, removed]);
+  const waiting = Boolean(room.scheduledAt && room.playback.version === 0 && !room.playback.playing);
+  const [serverTime, setServerTime] = useState(initial.playback.serverTime);
+  const serverNow = useScreeningClock(serverTime, waiting);
+  const beforeStart = waiting && new Date(room.scheduledAt!).getTime() > serverNow;
   const [viewerCount, setViewerCount] = useState(0), [participantsDirty, setParticipantsDirty] = useState(true);
   const [inviteUses, setInviteUses] = useState(Math.max(1, initial.capacity - 1)), [expiryHours, setExpiryHours] = useState(24), [inviteExpiry, setInviteExpiry] = useState("");
   const [inviteRecords, setInviteRecords] = useState<{ id: string; expiresAt: string; uses: number; maxUses: number; revoked: boolean }[]>([]);
@@ -31,6 +45,16 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     if (removed) return;
     let disposed = false, connecting = false, ticketExpiresAt = 0, retryDelay = 5000;
     let connection: Socket | null = null, retry: ReturnType<typeof setTimeout> | undefined;
+    function syncClock() {
+      if (!connection?.connected) return;
+      const started = Date.now(), monotonic = performance.now();
+      connection.emit("clock", {}, (reply: Ack) => {
+        if (disposed || !reply.ok || !reply.data) return;
+        const time = (reply.data as { serverTime: number }).serverTime;
+        setClockOffset(time - (started + Date.now()) / 2);
+        setServerTime(time + (performance.now() - monotonic) / 2);
+      });
+    }
     async function connect() {
       if (disposed || connecting || !navigator.onLine) return;
       if (connection && ticketExpiresAt > Date.now() + 60000) { connection.connect(); return; }
@@ -43,10 +67,10 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
         connection.on("connect", () => { connection?.emit("join", { roomId: initial.id }, (ack: Ack) => {
           setConnected(ack.ok); setError(ack.ok ? "" : ack.error || "Unable to join.");
           if (!ack.ok && [401,403,404,409,451].includes(ack.status || 0)) { setRemoved(ack.error || "This screening is unavailable."); connection?.disconnect(); }
-          if (ack.ok) { const started = Date.now(); connection?.emit("clock", {}, (reply: Ack) => { if (reply.ok && reply.data) setClockOffset((reply.data as { serverTime: number }).serverTime - (started + Date.now()) / 2); }); }
+          if (ack.ok) syncClock();
         }); });
         connection.on("disconnect", () => setConnected(false)); connection.on("connect_error", () => { setConnected(false); setError("Reconnecting to your cinema…"); });
-        connection.on("state", (data: RoomData) => { if (data.playback.version < playback.current.version) data = { ...data, playback: playback.current }; else playback.current = data.playback; setRoom(data); setMessages(data.visibility === "PRIVATE" ? data.messages.filter(message => !deletedMessages.current.has(message.id)) : []); });
+        connection.on("state", (data: RoomData) => { if (data.playback.version < playback.current.version) data = { ...data, playback: playback.current }; else playback.current = data.playback; setRoom(data); setServerTime(data.playback.serverTime); setMessages(data.visibility === "PRIVATE" ? data.messages.filter(message => !deletedMessages.current.has(message.id)) : []); });
         connection.on("playback", updatePlayback);
         connection.on("presence", (data: { count: number; ids: string[] } | string[]) => { setOnline(Array.isArray(data) ? data : data.ids); setViewerCount(Array.isArray(data) ? data.length : data.count); });
         connection.on("participants-changed", () => setParticipantsDirty(true));
@@ -74,7 +98,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     const online = () => { clearTimeout(retry); void connect(); };
     window.addEventListener("offline", offline); window.addEventListener("online", online);
     void connect();
-    const sync = setInterval(() => { if (!connection?.connected) return; const started = Date.now(); connection?.emit("clock", {}, (ack: Ack) => { if (ack.ok && ack.data) setClockOffset((ack.data as { serverTime: number }).serverTime - (started + Date.now()) / 2); }); }, 10000);
+    const sync = setInterval(syncClock, 10000);
     const renew = setInterval(() => { ticketExpiresAt = 0; void connect(); }, 2700000);
     return () => { disposed = true; clearTimeout(retry); clearInterval(sync); clearInterval(renew); window.removeEventListener("offline", offline); window.removeEventListener("online", online); connection?.disconnect(); socket.current = null; };
     // A room owns one connection; all live state arrives through socket events.
@@ -112,7 +136,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     const timeout = setTimeout(() => setReactions(old => old.filter(r => r.messageId || r.expiresAt > Date.now())), Math.max(0, nextExpiry - Date.now()));
     return () => clearTimeout(timeout);
   }, [reactions]);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "instant", block: "nearest" }); }, [messages]);
+  useEffect(() => { if (messagesPinned.current) scrollChatToLatest(messagePane.current); }, [messages, tab, chatOpen]);
   async function emit(name: string, data: unknown) {
     if (!socket.current?.connected) throw new Error("Please wait for the cinema connection.");
     return new Promise<unknown>((resolve, reject) => { socket.current!.timeout(8000).emit(name, data, (timeout: Error | null, ack: Ack) => { if (timeout) reject(new Error("The cinema did not respond. Try again.")); else if (!ack.ok) reject(new Error(ack.error)); else resolve(ack.data); }); });
@@ -120,7 +144,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
   async function roomAction(body: unknown) { const response = await fetch(`/api/rooms/${room.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; }
   async function doControl(action: "play" | "pause" | "seek", position?: number) { try { const state = await emit("playback", { action, position, expectedVersion: playback.current.version }) as ClientPlayback; updatePlayback(state); return true; } catch (e) { setError(e instanceof Error ? e.message : "Playback failed."); return false; } }
   async function send(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (sending || !text.trim()) return; setSending(true);
+    event.preventDefault(); if (sending || !text.trim()) return; setSending(true); messagesPinned.current = true;
     if (pendingMessage.current?.body !== text) pendingMessage.current = { body: text, nonce: crypto.randomUUID() };
     try { await emit("message", { body: text, clientNonce: pendingMessage.current.nonce }); setText(current => current === text ? "" : current); pendingMessage.current = null; setError(""); }
     catch (e) { setError(e instanceof Error ? e.message : "Message not sent."); } finally { setSending(false); }
@@ -148,7 +172,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
   return <div className={`cinema-client theater-${privateTheater ? "private" : "public"} theme-${room.theme}`}>
     <div className="cinema-heading">
       <div>
-        <div className="cinema-status"><span className="pill">{privateTheater ? <Lock size={11} /> : <Radio size={11} />}{privateTheater ? "PRIVATE THEATER" : "PUBLIC THEATER"}</span><span className={connected ? "connection-good" : "muted"}>{connected ? room.scheduledAt && new Date(room.scheduledAt).getTime() > room.playback.serverTime ? "● Connected · Starts soon" : "● Live & synchronized" : "○ Connecting…"}</span></div>
+        <div className="cinema-status"><span className="pill">{privateTheater ? <Lock size={11} /> : <Radio size={11} />}{privateTheater ? "PRIVATE THEATER" : "PUBLIC THEATER"}</span><span className={connected ? "connection-good" : "muted"}>{connected ? waiting ? beforeStart ? "● Connected · Starts soon" : privateTheater ? "● Ready · Waiting for host" : "● Starting screening…" : "● Live & synchronized" : "○ Connecting…"}</span></div>
         <h1>{room.title}</h1>
         <p>{room.movie.title} <span>·</span> <span className="viewer-count" data-testid="live-viewer-count">{viewerCount} watching</span> <span>·</span> {room.capacity} seats</p>
       </div>
@@ -164,27 +188,34 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
         }}><LogOut size={15} />Leave</GlassButton>
       </div>
     </div>
-    {room.scheduledAt && <div className="glass-card mb-6"><p className="muted">Scheduled for <ScreeningTime value={new Date(room.scheduledAt).toISOString()} /></p><ReminderButton roomId={room.id} /></div>}
+    {waiting && room.scheduledAt && <section className="screening-waiting" aria-label="Theater waiting room">
+      <div className="waiting-poster"><PrivacyImage src={posterFor(room.movie)} alt={`${room.movie.title} poster`} fill sizes="88px" /></div>
+      <div><span className="eyebrow">YOUR SEAT IS RESERVED</span><h2>{beforeStart ? "A good film is worth the wait." : privateTheater ? "Ready when your host is." : "The premiere is starting."}</h2>
+        <Countdown startsAt={room.scheduledAt} now={serverNow} readyText={privateTheater ? "Waiting for the host to start" : "Waiting for the screening timeline"} />
+        <p className="muted"><ScreeningTime value={new Date(room.scheduledAt).toISOString()} /></p>
+        <p className="muted">{privateTheater ? "Chat with your invited friends. The host can start playback at the scheduled time." : "Stay here to join the shared timeline when the screening starts. Public reactions are emoji-only."}</p>
+        {beforeStart && <ReminderButton roomId={room.id} />}
+      </div>
+    </section>}
     {error && <p role="status" className="error-message cinema-notice">{error}</p>}
     <div className={`cinema-layout ${privateTheater && chatOpen ? "" : "chat-collapsed"}`}>
-      <div>
-        <CinemaPlayer media={room.media} playback={room.playback} canControl={host && connected} publicTheater={!privateTheater} onControl={doControl} movieId={room.movie.id} clockOffset={clockOffset} poster={backdropFor(room.movie)}>
+      <div className="cinema-main">
+        <CinemaPlayer media={room.media} playback={room.playback} canControl={host && connected && !beforeStart} publicTheater={!privateTheater} onControl={doControl} movieId={room.movie.id} clockOffset={clockOffset} poster={backdropFor(room.movie)}>
           <TheaterReactions connected={connected} reactions={reactions.filter(r => !r.messageId)} onReaction={react} />
         </CinemaPlayer>
         <div className="cinema-film-info">
-          <div><span className="eyebrow">NOW SHOWING</span><h2>{room.movie.title}</h2><p className="muted">{room.movie.year} · {Math.round(room.movie.durationSeconds / 60)} min · {room.movie.genres.join(" / ")}</p><p className="muted">{room.movie.synopsis}</p>{room.description && <p className="muted mt-3">{room.description}</p>}</div>
+          <div><span className="eyebrow">NOW SHOWING</span><h2>{room.movie.title}</h2><p className="muted">{room.movie.year} · {Math.round(room.movie.durationSeconds / 60)} min · {room.movie.genres.join(" / ")}</p><details className="screening-film-details"><summary>About this screening</summary><p className="muted">{room.movie.synopsis}</p>{room.description && <p className="muted mt-3">{room.description}</p>}</details></div>
           <div className="button-row">
             <GlassButton aria-label="Report room" onClick={() => setReport(null)}><Flag size={14} />Report</GlassButton>
             {host && <GlassButton variant="danger" onClick={async () => { try { await roomAction({ action: "end" }); router.push("/cinemas"); } catch (e) { setError(e instanceof Error ? e.message : "Unable to end."); } }}>End screening</GlassButton>}
           </div>
         </div>
-        <p className="rights-note"><small>{filmAttribution(room.media.attribution)} <a href={room.media.rightsUrl} target="_blank" rel="noreferrer">{room.media.license}</a></small></p>
       </div>
       {privateTheater && chatOpen && <GlassChatPanel>
         <div className="chat-header"><div><h2>Screening chat</h2><span><span className="live-dot" /> {viewerCount} here with you</span></div><button className="icon-button" aria-label="Close chat" onClick={() => setChatOpen(false)}><X size={17} /></button></div>
-        <div className="chat-tabs"><button className={tab === "chat" ? "active" : ""} aria-pressed={tab === "chat"} onClick={() => setTab("chat")}>Chat</button><button className={tab === "people" ? "active" : ""} aria-pressed={tab === "people"} onClick={() => setTab("people")}><Users size={12} />People ({room.participants.length})</button></div>
+        <div className="chat-tabs"><button className={tab === "chat" ? "active" : ""} aria-pressed={tab === "chat"} onClick={() => { messagesPinned.current = true; setTab("chat"); }}>Chat</button><button className={tab === "people" ? "active" : ""} aria-pressed={tab === "people"} onClick={() => setTab("people")}><Users size={12} />People ({room.participants.length})</button></div>
         {tab === "chat" ? <>
-          <div className="chat-messages">
+          <ScrollRegion ref={messagePane} className="chat-messages" label="Private theater messages" live onScroll={event => { const pane = event.currentTarget; messagesPinned.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; }}>
             {!messages.length && <div className="chat-welcome"><MessageSquare size={23} /><h3>Your guests. Your conversation.</h3><p>Chat is shared with authorized members. Administrators may review reported content.</p></div>}
             {messages.map(m => <article className="chat-message" key={m.id}>
               <Avatar name={m.name} image={m.image} />
@@ -193,13 +224,13 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
                 <p>{m.body}</p><button className="message-react" aria-label={`Like message by ${m.name}`} onClick={() => react("❤️", m.id)}>♡{reactions.filter(r => r.messageId === m.id).length || ""}</button>
               </div>
             </article>)}
-            <div ref={end} />
-          </div>
+          </ScrollRegion>
           <form className="chat-compose" onSubmit={send}><input value={text} onChange={e => setText(e.target.value)} maxLength={1000} placeholder="Share a thought…" aria-label="Chat message" disabled={!connected} /><button aria-label="Send message" disabled={!text.trim() || !connected || sending}><Send size={16} /></button></form>
           <p className="chat-guideline">Members can read and copy messages. Avoid personal details. <Link href="/legal/safety">Safety & reporting</Link></p>
         </> : participantList}
       </GlassChatPanel>}
     </div>
+    <p className="rights-note"><small>{filmAttribution(room.media.attribution)} <a href={room.media.rightsUrl} target="_blank" rel="noreferrer">{room.media.license}</a></small></p>
     <GlassModal open={viewersOpen} onClose={() => setViewersOpen(false)} title="Theater viewers">
       <p className="muted">{viewerCount} watching · {room.capacity} seats{host ? ". Manage participants below." : "."}</p>{viewersOpen && participantList}
     </GlassModal>
