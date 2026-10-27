@@ -169,3 +169,7 @@ The operator must publish actual legal identity, public copyright/support contac
 retention terms, subprocessors, age/community procedures and jurisdiction-specific
 privacy notices. The local legal page already describes application behavior;
 it explicitly marks operator-specific launch information as pending.
+
+## Movie credits and theater-choice update
+
+Apply the additive `20261026000100_verified_movie_credits` migration with `npm run db:migrate`, then `npm run db:seed` to populate the approved people and credit records. Existing cast strings, films, rooms, messages and invitations are preserved; repeated credit seeds do not overwrite operator curation. No new runtime environment key or payment integration is required. See [WATCHING-EXPERIENCE.md](WATCHING-EXPERIENCE.md) for metadata/portrait sources, tested flows and remaining launch boundaries.

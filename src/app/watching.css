@@ -1,0 +1,77 @@
+/* Editorial film discovery, factual people profiles and deliberate theater entry. */
+.movie-editorial .detail-hero { --accent: #cfb587; --accent-hover: #e2cca8; --on-accent: #19130c; --on-accent-hover: #19130c; }
+:root .movie-editorial .detail-hero .hero-shade { background: linear-gradient(90deg,rgba(9,8,7,.96),rgba(9,8,7,.78) 65%,rgba(9,8,7,.45)),linear-gradient(0deg,var(--bg),transparent 60%); }
+.movie-editorial .detail-hero .hero-content { max-width: 1080px; padding-top: 64px; padding-bottom: 64px; color: #f6f1e7; --muted: #c7bdac; }
+.movie-editorial .detail-hero .back-link { position: static; margin-bottom: 24px; }
+.movie-introduction { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 28px; align-items: center; margin-bottom: 24px; }
+.movie-introduction h1 { font-size: clamp(2rem,4.5vw,3.5rem); }
+.detail-poster { position: relative; width: 100%; aspect-ratio: 2/3; border-radius: 3px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.detail-poster img { object-fit: cover; }
+.movie-introduction .director-line { font-size: .875rem; margin: 16px 0 0; }
+.director-line a { color: #e2cca8; text-decoration: underline; text-underline-offset: 3px; }
+.movie-editorial .hero-content .detail-synopsis { max-width: 720px; }
+.movie-editorial .detail-content>section { margin-top: 40px; }
+.cast-rail { display: flex; gap: 22px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 4px 4px 20px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.cast-rail:focus-within { scroll-snap-type: none; }
+.credit-card { flex: 0 0 168px; min-width: 0; scroll-snap-align: start; }
+.credit-card h3 { font: 600 .875rem/1.45 "Inter",sans-serif; margin: 12px 0 4px; overflow-wrap: anywhere; }
+.credit-card p { font-size: .75rem; color: var(--muted); margin: 0; overflow-wrap: anywhere; }
+.credit-card:hover h3 { color: var(--accent-text); }
+.person-portrait { position: relative; aspect-ratio: 2/3; display: grid; place-items: center; background: var(--surface); color: var(--accent-text); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.person-portrait img { object-fit: contain; }
+.person-portrait>span { font: 500 2rem "Montserrat",sans-serif; letter-spacing: .04em; }
+.private-film-entry { display: flex; gap: 24px; padding: 28px 0; border-block: 1px solid var(--line); }
+.private-film-entry>svg { flex-shrink: 0; color: var(--accent-text); }
+.private-film-entry p { color: var(--muted); max-width: 600px; }
+.person-introduction { display: grid; grid-template-columns: 220px minmax(0,720px); gap: 48px; align-items: center; margin: 32px 0 60px; }
+.person-introduction figure { margin: 0; }
+.person-introduction figcaption { color: var(--muted); font-size: .625rem; margin-top: 10px; overflow-wrap: anywhere; }
+.person-introduction figcaption a { text-decoration: underline; }
+.person-profession { color: var(--accent-text); }
+.person-introduction .subtle-link { display: inline-flex; align-items: center; gap: 8px; }
+.filmography-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(210px,100%),1fr)); gap: 32px 24px; }
+.filmography-entry { min-width: 0; }
+.credit-role { color: var(--accent-text); font-size: .8125rem; margin: 12px 0 4px; }
+.filmography-entry details { font-size: .75rem; color: var(--muted); }
+.filmography-entry summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.person-editorial>section+section { margin-top: 56px; }
+.watch-choices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin-bottom: 48px; }
+.watch-choices>a { padding: 28px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+.watch-choices>a:hover { border-color: var(--accent); }
+.watch-choices svg { color: var(--accent-text); }
+.watch-choices h2 { margin-top: 20px; }
+.watch-choices p { color: var(--muted); }
+.watch-choices span { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--accent-text); font-size: .8125rem; }
+.watch-selection>section { margin-block: 44px; scroll-margin-top: calc(var(--header-height,78px) + 20px); }
+.section-header a.button-primary { color: var(--on-accent); }
+.section-header a.button-primary:hover { color: var(--on-accent-hover); }
+.watch-empty { padding: 24px; border-block: 1px solid var(--line); color: var(--muted); }
+.solo-option { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--line); padding-top: 24px; color: var(--muted); }
+.solo-option p { margin: 0; }
+.solo-option a { display: inline-flex; align-items: center; gap: 8px; }
+.unread-badge { display: inline-grid; place-items: center; min-width: 22px; min-height: 22px; padding-inline: 5px; border-radius: 4px; background: var(--accent); color: var(--on-accent); font-size: .6875rem; }
+.chat-tabs { flex-wrap: wrap; }
+.chat-tabs .chat-new-messages { color: var(--accent-text); white-space: nowrap; }
+:root:is([data-navigation-layout="compact"],[data-navigation-layout="cover"]) .theater-private .glass-chat-panel { min-height: max(420px,24rem); max-height: max(560px,30rem); }
+.glass-chat-panel .chat-messages { scrollbar-gutter: stable; }
+.player-shell video::cue { font-family: "Inter",sans-serif; font-size: clamp(.875rem,2cqw,1.375rem); color: #fff; background: rgba(0,0,0,.8); }
+.player-shell.auto-controls-hidden .glass-player-controls { opacity: 0; pointer-events: none; }
+.player-shell.auto-controls-hidden .reaction-bar { bottom: max(12px,env(safe-area-inset-bottom)); }
+.player-shell .glass-player-controls { padding: 4px 10px; }
+@container app-content (max-width:700px) {
+  .movie-introduction { grid-template-columns: 100px minmax(0,1fr); gap: 18px; }
+  .movie-introduction h1 { font-size: clamp(1.5rem,7cqw,2.25rem); }
+  .movie-introduction .movie-meta { font-size: .6875rem; gap: 8px; }
+  .movie-introduction .director-line { font-size: .75rem; }
+  .movie-editorial .detail-hero .hero-content { padding-top: 32px; padding-bottom: 40px; }
+  .credit-card { flex-basis: 148px; }
+  .cast-rail { gap: 16px; }
+  .person-introduction { display: block; }
+  .person-introduction figure { width: 100%; margin-bottom: 24px; }
+  .person-introduction .person-portrait { width: 120px; }
+  .person-introduction h1 { margin-top: 12px; }
+  .watch-choices { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .watch-choices>a { padding: 24px; }
+  .watch-selection .section-header { flex-wrap: wrap; }
+}
+@media(prefers-reduced-motion:no-preference) { .glass-player-controls { transition: opacity .18s ease; } }

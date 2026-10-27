@@ -5,12 +5,14 @@ Motion, Auth.js, PostgreSQL/Prisma, Socket.IO and Redis. Original cinematic iden
 intentional dark/light themes, licensed open-film discovery, public/private screenings and server-authoritative
 playback synchronization. This release extends the existing CineChat application.
 
+The latest movie-watching release uses deep black / warm white with champagne-gold accents. Movie selections open editorial details and sourced cast/crew profiles; Watch now then checks public screenings and authorized private rooms. See [WATCHING-EXPERIENCE.md](docs/WATCHING-EXPERIENCE.md) for the new relationships, navigation, tests and licensing, [the current screenshots](docs/watching-release/README.md), and [the exact changed files](docs/WATCHING-FILES.md). Older blue-theme screenshots remain labeled historical checkpoints.
+
 Use the appearance control in the header to choose Dark, Light, or System. The
 preference persists across reloads and tabs. The premium design, changed-file
 inventory, artwork licenses, and inspected screenshots are documented in
 [the redesign report](docs/REDESIGN.md).
 
-The current responsive audit, browser matrix, screenshots and device limitations
+The earlier responsive audit, browser matrix, screenshots and device limitations
 are in [RESPONSIVE.md](docs/RESPONSIVE.md) and [ADAPTIVE.md](docs/ADAPTIVE.md). Scheduled waiting rooms, persistent
 reminders and viewing-history changes are recorded in
 [V1-FINISHING.md](docs/V1-FINISHING.md).
@@ -21,7 +23,7 @@ members. Everyone can create a private theater. Administrators create and schedu
 public screenings, and control their shared timeline. Choose **Create theater**
 to configure a film, seats, schedule, and optional private access code. The theater changes,
 security checks, and screenshots are documented in [THEATERS.md](docs/THEATERS.md).
-The latest audit, implementation, migrations, verification evidence, exact file
+The earlier V1 audit, implementation, migrations, verification evidence, exact file
 inventory, and preview requirements are in [V1-COMPLETION.md](docs/V1-COMPLETION.md).
 The earlier free-theater upgrade is recorded in [FREE-THEATERS.md](docs/FREE-THEATERS.md). Both theater types and all atmospheres
 are free; there are no subscription or payment requirements.

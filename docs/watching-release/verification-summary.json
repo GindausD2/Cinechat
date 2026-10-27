@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-27",
+  "repository": "GindausD2/Cinechat",
+  "stage": "Champagne-gold movie journey and adaptive playback release",
+  "physicalDevicesTested": false,
+  "engines": {
+    "chromium": {
+      "version": "156.0.8078.4",
+      "pageMatrixStates": 780,
+      "pageOverflowFindings": 0,
+      "liveTheaterStates": 52,
+      "waitingRoomStates": 52,
+      "enlargedTextStates": 66,
+      "sameSessionResizeStates": 13
+    },
+    "webkit": {
+      "version": "27.2",
+      "pageMatrixStates": 780,
+      "pageOverflowFindings": 0,
+      "liveTheaterStates": 52,
+      "waitingRoomStates": 52,
+      "enlargedTextStates": 66,
+      "sameSessionResizeStates": 13
+    },
+    "firefox": {
+      "version": "157.0",
+      "pageMatrixStates": 780,
+      "pageOverflowFindings": 0,
+      "liveTheaterStates": 52,
+      "waitingRoomStates": 52,
+      "enlargedTextStates": 66,
+      "sameSessionResizeStates": 13
+    }
+  },
+  "statesPerEngine": 950,
+  "totalMatrixStates": 2850,
+  "nativeSegments": {
+    "method": "Chromium CDP displayFeature, native viewport.segments",
+    "physicalDevice": false,
+    "checked": [
+      "wide private panes",
+      "safe invitation dialog",
+      "safe immersive player",
+      "narrow panes",
+      "vertical fold",
+      "unfold with draft and video identity",
+      "active two-viewer playback after folding",
+      "public emoji-only pane",
+      "movie discovery in safe pane"
+    ]
+  },
+  "results": {
+    "lint": "pass",
+    "typecheck": "pass",
+    "unitTests": 53,
+    "unitFiles": 17,
+    "productionBuild": "pass",
+    "applicationE2EPassed": 34,
+    "applicationE2EMinutes": 7.2,
+    "mobileEmulationPassed": 2,
+    "mobileEmulationMinutes": 1.6,
+    "responsivePassed": 16,
+    "responsiveExpectedSkips": 2,
+    "responsiveMinutes": 8.6,
+    "appliedMigrations": 12,
+    "schemaDiff": "none",
+    "knownDependencyVulnerabilities": 0,
+    "productionLaunchCheck": "blocked: missing production email/HTTPS and verified founder disclosures"
+  },
+  "limitations": [
+    "Browser emulation is not physical iOS/Android/foldable testing",
+    "Native display segments are simulated only in Chromium; other engines exercise responsive fallback",
+    "Local two-worker presence test covers 100 authenticated socket viewers, not global CDN video load",
+    "Authorized local Blender media and attribution caption fixtures; commercial rights and full translations are not provided"
+  ]
+}

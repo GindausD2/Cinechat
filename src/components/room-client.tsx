@@ -16,16 +16,29 @@ import { ScreeningTime } from "./screening-time";
 import { Countdown, useScreeningClock } from "./screening-countdown";
 import { PrivacyImage } from "./privacy-image";
 import { ScrollRegion } from "./scroll-region";
+import { runtimeLabel } from "@/lib/movie-presentation";
 type RoomData = Awaited<ReturnType<typeof roomSnapshot>>;
 type Message = RoomData["messages"][number];
 type Ack = { ok: boolean; data?: unknown; error?: string; status?: number };
 type Reaction = { id: string; emoji: string; userId?: string; messageId: string | null; expiresAt: number };
-function scrollChatToLatest(pane: HTMLDivElement | null) { if (pane) pane.scrollTop = pane.scrollHeight; }
+function scrollChatToLatest(pane: HTMLDivElement | null, smooth = false) { if (!pane) return; if (smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches) pane.scrollTo({ top: pane.scrollHeight, behavior: "smooth" }); else pane.scrollTop = pane.scrollHeight; }
+function rememberMessages(seen: Set<string>, incoming: Message[]) {
+  const unseen = incoming.filter(message => !seen.has(message.id));
+  for (const message of unseen) { seen.add(message.id); if (seen.size > 500) seen.delete(seen.values().next().value!); }
+  return unseen;
+}
 export function RoomClient({ initial, viewerId, autoInvite = false }: { initial: RoomData; viewerId: string; autoInvite?: boolean }) {
   const [room, setRoom] = useState(initial), [connected, setConnected] = useState(false), [messages, setMessages] = useState(initial.visibility === "PRIVATE" ? initial.messages : []), [text, setText] = useState(""), [error, setError] = useState(""), [chatOpen, setChatOpen] = useState(true), [tab, setTab] = useState("chat"), [inviteOpen, setInviteOpen] = useState(false), [viewersOpen, setViewersOpen] = useState(false), [invite, setInvite] = useState(""), [inviteId, setInviteId] = useState(""), [copied, setCopied] = useState(false), [online, setOnline] = useState<string[]>([]), [reactions, setReactions] = useState<Reaction[]>([]), [report, setReport] = useState<string | null | false>(false), [removed, setRemoved] = useState(""), [clockOffset, setClockOffset] = useState(0);
   const socket = useRef<Socket | null>(null), playback = useRef(initial.playback), messagePane = useRef<HTMLDivElement>(null), messagesPinned = useRef(true); const router = useRouter(); const host = room.canManage;
   const deletedMessages = useRef(new Set<string>()), pendingMessage = useRef<{ body: string; nonce: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const chatReading = useRef(true), seenMessages = useRef(new Set(initial.messages.map(message => message.id)));
+  useEffect(() => { chatReading.current = chatOpen && tab === "chat"; }, [chatOpen, tab]);
+  useEffect(() => {
+    const visible = () => { if (!document.hidden && chatReading.current && messagesPinned.current) setUnread(0); };
+    document.addEventListener("visibilitychange", visible); return () => document.removeEventListener("visibilitychange", visible);
+  }, []);
   const privateTheater = room.visibility === "PRIVATE";
   useEffect(() => {
     const root = document.documentElement, visibility = initial.visibility.toLowerCase();
@@ -70,12 +83,23 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
           if (ack.ok) syncClock();
         }); });
         connection.on("disconnect", () => setConnected(false)); connection.on("connect_error", () => { setConnected(false); setError("Reconnecting to your cinema…"); });
-        connection.on("state", (data: RoomData) => { if (data.playback.version < playback.current.version) data = { ...data, playback: playback.current }; else playback.current = data.playback; setRoom(data); setServerTime(data.playback.serverTime); setMessages(data.visibility === "PRIVATE" ? data.messages.filter(message => !deletedMessages.current.has(message.id)) : []); });
+        connection.on("state", (data: RoomData) => {
+          if (data.playback.version < playback.current.version) data = { ...data, playback: playback.current }; else playback.current = data.playback;
+          setRoom(data); setServerTime(data.playback.serverTime);
+          const incoming = data.visibility === "PRIVATE" ? data.messages.filter(message => !deletedMessages.current.has(message.id)) : [];
+          const unseen = rememberMessages(seenMessages.current, incoming).filter(message => message.userId !== viewerId);
+          if (unseen.length && (!chatReading.current || !messagesPinned.current || document.hidden)) setUnread(count => Math.min(99, count + unseen.length));
+          setMessages(incoming);
+        });
         connection.on("playback", updatePlayback);
         connection.on("presence", (data: { count: number; ids: string[] } | string[]) => { setOnline(Array.isArray(data) ? data : data.ids); setViewerCount(Array.isArray(data) ? data.length : data.count); });
         connection.on("participants-changed", () => setParticipantsDirty(true));
         if (initial.visibility === "PRIVATE") {
-          connection.on("message", (message: Message) => { if (!deletedMessages.current.has(message.id)) setMessages(old => old.some(m => m.id === message.id) ? old : [...old.slice(-99), message]); });
+          connection.on("message", (message: Message) => {
+            if (deletedMessages.current.has(message.id) || !rememberMessages(seenMessages.current, [message]).length) return;
+            if (message.userId !== viewerId && (!chatReading.current || !messagesPinned.current || document.hidden)) setUnread(count => Math.min(99, count + 1));
+            setMessages(old => [...old.slice(-99), message]);
+          });
           connection.on("message-delete", ({ id }: { id: string }) => {
             deletedMessages.current.add(id); if (deletedMessages.current.size > 1000) deletedMessages.current.delete(deletedMessages.current.values().next().value!);
             setMessages(old => old.filter(message => message.id !== id));
@@ -102,7 +126,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     const renew = setInterval(() => { ticketExpiresAt = 0; void connect(); }, 2700000);
     return () => { disposed = true; clearTimeout(retry); clearInterval(sync); clearInterval(renew); window.removeEventListener("offline", offline); window.removeEventListener("online", online); connection?.disconnect(); socket.current = null; };
     // A room owns one connection; all live state arrives through socket events.
-  }, [initial.id, initial.visibility, removed]);
+  }, [initial.id, initial.visibility, removed, viewerId]);
   useEffect(() => {
     if (!viewersOpen || !participantsDirty) return;
     const controller = new AbortController();
@@ -137,6 +161,8 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
     return () => clearTimeout(timeout);
   }, [reactions]);
   useEffect(() => { if (messagesPinned.current) scrollChatToLatest(messagePane.current); }, [messages, tab, chatOpen]);
+  function openChat(smooth = false) { messagesPinned.current = true; chatReading.current = true; setChatOpen(true); setTab("chat"); setUnread(0); scrollChatToLatest(messagePane.current, smooth); }
+  function closeChat() { chatReading.current = false; setChatOpen(false); }
   async function emit(name: string, data: unknown) {
     if (!socket.current?.connected) throw new Error("Please wait for the cinema connection.");
     return new Promise<unknown>((resolve, reject) => { socket.current!.timeout(8000).emit(name, data, (timeout: Error | null, ack: Ack) => { if (timeout) reject(new Error("The cinema did not respond. Try again.")); else if (!ack.ok) reject(new Error(ack.error)); else resolve(ack.data); }); });
@@ -144,7 +170,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
   async function roomAction(body: unknown) { const response = await fetch(`/api/rooms/${room.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; }
   async function doControl(action: "play" | "pause" | "seek", position?: number) { try { const state = await emit("playback", { action, position, expectedVersion: playback.current.version }) as ClientPlayback; updatePlayback(state); return true; } catch (e) { setError(e instanceof Error ? e.message : "Playback failed."); return false; } }
   async function send(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (sending || !text.trim()) return; setSending(true); messagesPinned.current = true;
+    event.preventDefault(); if (sending || !text.trim()) return; setSending(true); messagesPinned.current = true; setUnread(0);
     if (pendingMessage.current?.body !== text) pendingMessage.current = { body: text, nonce: crypto.randomUUID() };
     try { await emit("message", { body: text, clientNonce: pendingMessage.current.nonce }); setText(current => current === text ? "" : current); pendingMessage.current = null; setError(""); }
     catch (e) { setError(e instanceof Error ? e.message : "Message not sent."); } finally { setSending(false); }
@@ -174,11 +200,11 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
       <div>
         <div className="cinema-status"><span className="pill">{privateTheater ? <Lock size={11} /> : <Radio size={11} />}{privateTheater ? "PRIVATE THEATER" : "PUBLIC THEATER"}</span><span className={connected ? "connection-good" : "muted"}>{connected ? waiting ? beforeStart ? "● Connected · Starts soon" : privateTheater ? "● Ready · Waiting for host" : "● Starting screening…" : "● Live & synchronized" : "○ Connecting…"}</span></div>
         <h1>{room.title}</h1>
-        <p>{room.movie.title} <span>·</span> <span className="viewer-count" data-testid="live-viewer-count">{viewerCount} watching</span> <span>·</span> {room.capacity} seats</p>
+        <p><Link href={`/movies/${room.movie.id}?room=${room.id}`}>{room.movie.title}</Link> <span>·</span> <span className="viewer-count" data-testid="live-viewer-count">{viewerCount} watching</span> <span>·</span> {room.capacity} seats</p>
       </div>
       <div className="button-row">
         {privateTheater && host && <GlassButton variant="primary" onClick={makeInvite}><Link2 size={15} />Invite Friends</GlassButton>}
-        {privateTheater && <GlassButton onClick={() => setChatOpen(!chatOpen)} aria-label={chatOpen ? "Collapse chat" : "Open chat"} aria-expanded={chatOpen}><MessageSquare size={15} /></GlassButton>}
+        {privateTheater && <GlassButton onClick={() => chatOpen ? closeChat() : openChat()} aria-label={chatOpen ? "Collapse chat" : "Open chat"} aria-expanded={chatOpen}><MessageSquare size={15} />{unread > 0 && <span className="unread-badge" role="status" aria-label={`${unread} unread private ${unread === 1 ? "message" : "messages"}`}>{unread}</span>}</GlassButton>}
         {(!privateTheater || !chatOpen) && <GlassButton onClick={() => setViewersOpen(true)} aria-label="Viewers" aria-haspopup="dialog"><Users size={15} />Viewers</GlassButton>}
         <GlassButton onClick={() => {
           // Leaving the screen must work even if the API or connection is down.
@@ -204,7 +230,7 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
           <TheaterReactions connected={connected} reactions={reactions.filter(r => !r.messageId)} onReaction={react} />
         </CinemaPlayer>
         <div className="cinema-film-info">
-          <div><span className="eyebrow">NOW SHOWING</span><h2>{room.movie.title}</h2><p className="muted">{room.movie.year} · {Math.round(room.movie.durationSeconds / 60)} min · {room.movie.genres.join(" / ")}</p><details className="screening-film-details"><summary>About this screening</summary><p className="muted">{room.movie.synopsis}</p>{room.description && <p className="muted mt-3">{room.description}</p>}</details></div>
+          <div><span className="eyebrow">NOW SHOWING</span><h2>{room.movie.title}</h2><p className="muted">{room.movie.year} · {runtimeLabel(room.movie.durationSeconds)} · {room.movie.genres.join(" / ")}</p><details className="screening-film-details"><summary>About this screening</summary><p className="muted">{room.movie.synopsis}</p>{room.description && <p className="muted mt-3">{room.description}</p>}</details></div>
           <div className="button-row">
             <GlassButton aria-label="Report room" onClick={() => setReport(null)}><Flag size={14} />Report</GlassButton>
             {host && <GlassButton variant="danger" onClick={async () => { try { await roomAction({ action: "end" }); router.push("/cinemas"); } catch (e) { setError(e instanceof Error ? e.message : "Unable to end."); } }}>End screening</GlassButton>}
@@ -212,10 +238,10 @@ export function RoomClient({ initial, viewerId, autoInvite = false }: { initial:
         </div>
       </div>
       {privateTheater && chatOpen && <GlassChatPanel>
-        <div className="chat-header"><div><h2>Screening chat</h2><span><span className="live-dot" /> {viewerCount} here with you</span></div><button className="icon-button" aria-label="Close chat" onClick={() => setChatOpen(false)}><X size={17} /></button></div>
-        <div className="chat-tabs"><button className={tab === "chat" ? "active" : ""} aria-pressed={tab === "chat"} onClick={() => { messagesPinned.current = true; setTab("chat"); }}>Chat</button><button className={tab === "people" ? "active" : ""} aria-pressed={tab === "people"} onClick={() => setTab("people")}><Users size={12} />People ({room.participants.length})</button></div>
+        <div className="chat-header"><div><h2>Screening chat</h2><span><span className="live-dot" /> {viewerCount} here with you</span></div><button className="icon-button" aria-label="Close chat" onClick={closeChat}><X size={17} /></button></div>
+        <div className="chat-tabs"><button className={tab === "chat" ? "active" : ""} aria-pressed={tab === "chat"} onClick={() => openChat()}>Chat</button><button className={tab === "people" ? "active" : ""} aria-pressed={tab === "people"} onClick={() => { chatReading.current = false; setTab("people"); }}><Users size={12} />People ({room.participants.length})</button>{unread > 0 && <button className="chat-new-messages" aria-label={`Show ${unread} new messages`} onClick={() => openChat(true)}>{unread} new</button>}</div>
         {tab === "chat" ? <>
-          <ScrollRegion ref={messagePane} className="chat-messages" label="Private theater messages" live onScroll={event => { const pane = event.currentTarget; messagesPinned.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; }}>
+          <ScrollRegion ref={messagePane} className="chat-messages" label="Private theater messages" live onScroll={event => { const pane = event.currentTarget; messagesPinned.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (messagesPinned.current && chatReading.current) setUnread(0); }}>
             {!messages.length && <div className="chat-welcome"><MessageSquare size={23} /><h3>Your guests. Your conversation.</h3><p>Chat is shared with authorized members. Administrators may review reported content.</p></div>}
             {messages.map(m => <article className="chat-message" key={m.id}>
               <Avatar name={m.name} image={m.image} />

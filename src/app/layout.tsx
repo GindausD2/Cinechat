@@ -9,6 +9,7 @@ import "@fontsource/montserrat/700.css";
 import "./globals.css";
 import "./responsive.css";
 import "./adaptive.css";
+import "./watching.css";
 import { GlassNavbar } from "@/components/navbar";
 import { currentUser } from "@/lib/session";
 import { CookiePreferencesProvider, CookiePreferencesButton } from "@/components/cookie-preferences";

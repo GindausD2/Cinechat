@@ -43,8 +43,8 @@ export default async function Page() {
         <div className="movie-meta"><span>{hero.year}</span><span className="pill">{hero.rating}</span><span>{Math.round(hero.durationSeconds / 60)} min</span><span>{hero.genres.join(" · ")}</span></div>
         <p>{hero.id === "big-buck-bunny" ? "A quiet day. A little mischief. One big-hearted bunny. Discover a playful escape from the everyday, and share it with your favorite people." : hero.synopsis}</p>
         <div className="button-row">
-          {hero.available && <Link href={user ? `/watch/${hero.id}` : "/login"} className="button button-primary"><Play size={17} fill="currentColor" />Watch now</Link>}
-          {hero.available && <Link href={`/cinemas/new?movie=${hero.id}`} className="button button-glass"><Users size={18} />Watch together</Link>}
+          {hero.available && <Link href={`/movies/${hero.id}`} className="button button-primary"><Play size={17} fill="currentColor" />Watch now</Link>}
+          {hero.available && <Link href={`/movies/${hero.id}#watch-options`} className="button button-glass"><Users size={18} />Watch together</Link>}
         </div>
         <div className="hero-credit">{hero.metadataProvider === "curated" && ["big-buck-bunny", "sintel", "tears-of-steel", "elephants-dream", "cosmos-laundromat", "caminandes"].includes(hero.id) ? "A Blender Foundation open film" : "From the CineChat catalog"} · <Link href={`/movies/${hero.id}`}>Film details</Link></div>
       </div>

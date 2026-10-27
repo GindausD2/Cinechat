@@ -49,17 +49,17 @@
 .player-shell { position: relative; aspect-ratio: 16/9; width: 100%; overflow: hidden; border-radius: 5px; background: #000; color: #fff; container-type: inline-size; }
 .player-shell:fullscreen { aspect-ratio: auto; width: 100%; height: 100%; border-radius: 0; }
 .player-shell.is-expanded { position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; aspect-ratio: auto; border-radius: 0; }
-.controls-row .quality-select { color: #fff; background: #12151d; border: 1px solid rgba(255,255,255,.25); width: 78px; min-height: 36px; padding: 4px; font-size: 0.6875rem; }
+.controls-row .quality-select { color: #fff; background: #15130f; border: 1px solid rgba(255,255,255,.25); width: 78px; min-height: 36px; padding: 4px; font-size: 0.6875rem; }
 .player-shell>video { width: 100%; height: 100%; object-fit: contain; }
-.center-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(8,9,13,.55); border: 1px solid rgba(255,255,255,.25); backdrop-filter: blur(8px); }
+.center-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(9,8,7,.55); border: 1px solid rgba(255,255,255,.25); backdrop-filter: blur(8px); }
 .center-play:disabled { opacity: .5; }
 .player-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: #d1d5df; background: rgba(0,0,0,.4); pointer-events: none; font-size: 0.75rem; }
 .player-error { position: absolute; left: 10%; top: 25%; right: 10%; padding: 16px; background: #30191e; border: 1px solid #68444a; color: #fca5a5; border-radius: 6px; text-align: center; font-size: 0.8125rem; }
 .player-error button { display: block; margin: 12px auto 0; min-height: 44px; background: transparent; border: 0; color: #fff; text-decoration: underline; }
 .player-shell.has-error .theater-reactions,.player-shell.has-error .glass-player-controls { display: none; }
-.player-shell .player-error { inset: 0; padding: 12px; display: flex; flex-direction: column; justify-content: center; font-size: 0.8125rem; line-height: 1.4; border: 0; border-radius: 0; background: rgba(8,9,13,.95); }
+.player-shell .player-error { inset: 0; padding: 12px; display: flex; flex-direction: column; justify-content: center; font-size: 0.8125rem; line-height: 1.4; border: 0; border-radius: 0; background: rgba(9,8,7,.95); }
 .room-card-content .join-arrow { background: transparent; height: auto; border-radius: 0; }
-.glass-player-controls { position: absolute; bottom: 14px; left: 16px; right: 16px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); border-radius: 7px; background: rgba(8,9,13,.72); backdrop-filter: blur(10px); color: #fff; }
+.glass-player-controls { position: absolute; bottom: 14px; left: 16px; right: 16px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); border-radius: 7px; background: rgba(9,8,7,.72); backdrop-filter: blur(10px); color: #fff; }
 .seek-line input { height: 24px; min-height: 24px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); width: 100%; cursor: pointer; }
 .seek-line input:disabled { cursor: default; opacity: .8; }
 .controls-row { display: flex; align-items: center; gap: 12px; padding-top: 2px; }
@@ -70,7 +70,7 @@
 .host-control-label { font-size: 0.5625rem; color: #b6becd; letter-spacing: .04em; margin-left: auto; }
 .controls-row input.volume-slider { width: 62px; min-height: 12px; padding: 0; height: 12px; border: 0; accent-color: var(--accent); }
 .theater-reactions { position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); z-index: 2; }
-.reaction-bar { display: flex; gap: 2px; align-items: center; padding: 4px; border: 1px solid rgba(255,255,255,.15); border-radius: 7px; background: rgba(8,9,13,.72); backdrop-filter: blur(8px); overflow-x: auto; scrollbar-width: none; }
+.reaction-bar { display: flex; gap: 2px; align-items: center; padding: 4px; border: 1px solid rgba(255,255,255,.15); border-radius: 7px; background: rgba(9,8,7,.72); backdrop-filter: blur(8px); overflow-x: auto; scrollbar-width: none; }
 .reaction-bar button { border: 0; border-radius: 4px; background: transparent; color: #fff; font-size: 1.3125rem; width: 44px; height: 44px; padding: 4px; flex: 0 0 44px; }
 .reaction-bar button:hover { background: rgba(255,255,255,.12); }
 .reaction-bar button:focus-visible { outline-offset: -3px; }
@@ -110,7 +110,7 @@
 .message-react { color: var(--muted); font-size: 0.6875rem; min-height: 32px; background: transparent; border: 0; padding: 3px 0; }
 .chat-compose { display: flex; gap: 8px; padding: 14px 16px 0; border-top: 1px solid var(--line); }
 .chat-compose input { font-size: 0.75rem; padding: 11px; min-height: 44px; }
-.chat-compose>button { display: flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; border: 0; border-radius: 5px; width: 44px; flex-shrink: 0; }
+.chat-compose>button { display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 5px; width: 44px; flex-shrink: 0; }
 .chat-compose>button:hover { background: var(--accent-hover); color: var(--on-accent-hover); }
 .chat-guideline { font-size: 0.625rem; color: var(--muted); text-align: center; padding: 12px 10px; margin: 0; }
 .participants { padding: 10px 20px; overflow: auto; }
@@ -182,15 +182,15 @@
 .screening-privacy { display: block; font-size: 0.625rem; color: var(--muted-on-surface); margin: 10px 0; }
 .screening-join { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--accent-text); min-height: 32px; }
 .theater-choice .privacy-options button:disabled { opacity: .65; cursor: default; border-color: var(--line); background: var(--surface); }
-.reaction-visibility { display: block; margin: 0 0 5px auto; min-height: 28px; padding: 4px 8px; border: 0; border-radius: 4px; background: rgba(8,9,13,.8); color: #fff; font-size: 0.625rem; }
+.reaction-visibility { display: block; margin: 0 0 5px auto; min-height: 28px; padding: 4px 8px; border: 0; border-radius: 4px; background: rgba(9,8,7,.8); color: #fff; font-size: 0.625rem; }
 .live-reactions { bottom: calc(100% + 6px); }
 @media(min-width:701px) and (max-width:1200px) { .room-grid.screening-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(max-width:380px) { .room-card.screening-card { padding: 14px; gap: 12px; } .screening-poster { flex-basis: 76px; } }
 
 /* Immersive controls always have a keyboard/touch-accessible restore action. */
-.player-controls-toggle { position: absolute; z-index: 4; top: max(8px,env(safe-area-inset-top)); right: max(8px,env(safe-area-inset-right)); display: grid; place-items: center; width: 44px; height: 44px; color: #fff; background: rgba(8,9,13,.72); border: 1px solid rgba(255,255,255,.16); border-radius: 5px; }
+.player-controls-toggle { position: absolute; z-index: 4; top: max(8px,env(safe-area-inset-top)); right: max(8px,env(safe-area-inset-right)); display: grid; place-items: center; width: 44px; height: 44px; color: #fff; background: rgba(9,8,7,.72); border: 1px solid rgba(255,255,255,.16); border-radius: 5px; }
 .controls-hidden .glass-player-controls,.controls-hidden .theater-reactions { display: none; }
-.controls-row .subtitle-select { color: #fff; background: #12151d; border: 1px solid rgba(255,255,255,.25); width: 96px; min-height: 36px; padding: 4px; font-size: 0.6875rem; }
+.controls-row .subtitle-select { color: #fff; background: #15130f; border: 1px solid rgba(255,255,255,.25); width: 96px; min-height: 36px; padding: 4px; font-size: 0.6875rem; }
 .theater-reactions { inset: 0; max-width: none; transform: none; pointer-events: none; }
 .theater-reactions .reaction-bar { position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); pointer-events: auto; }
 .theater-reactions .live-reactions { bottom: 172px; left: 50%; right: auto; width: 320px; max-width: calc(100% - 16px); transform: translateX(-50%); }

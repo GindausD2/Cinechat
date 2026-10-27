@@ -4,11 +4,12 @@ import Link from "next/link";
 import { PrivacyImage as Image } from "@/components/privacy-image";
 import { posterFor } from "@/lib/artwork";
 import { ArrowUpRight, Radio, Lock } from "lucide-react";
+import { runtimeLabel } from "@/lib/movie-presentation";
 import { ScreeningTime } from "./screening-time";
 import { ScreeningCountdown } from "./screening-countdown";
 import type { TheaterListing, TheaterScope } from "@/lib/theaters";
 
-export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn, movieId, limit = 50, liveOnly = false }: { initial: TheaterListing[]; scope: TheaterScope; upcoming: boolean; ended?: boolean; signedIn: boolean; movieId?: string; limit?: number; liveOnly?: boolean }) {
+export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn, movieId, limit = 50, liveOnly = false, authorizedChoices = false }: { initial: TheaterListing[]; scope: TheaterScope; upcoming: boolean; ended?: boolean; signedIn: boolean; movieId?: string; limit?: number; liveOnly?: boolean; authorizedChoices?: boolean }) {
   const [rooms, setRooms] = useState(initial), [error, setError] = useState("");
   useEffect(() => {
     if (scope === "private" && !signedIn) return;
@@ -17,16 +18,16 @@ export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn
       if (document.hidden || pending) return;
       pending = true;
       try {
-        const response = await fetch(`/api/rooms?type=${scope}${upcoming ? "&upcoming=true" : ""}${ended ? "&ended=true" : ""}${movieId ? `&movie=${encodeURIComponent(movieId)}` : ""}`, { signal: controller.signal });
+        const response = await fetch(authorizedChoices && movieId ? `/api/movies/${encodeURIComponent(movieId)}/watch-options` : `/api/rooms?type=${scope}${upcoming ? "&upcoming=true" : ""}${ended ? "&ended=true" : ""}${movieId ? `&movie=${encodeURIComponent(movieId)}` : ""}`, { signal: controller.signal });
         if (!response.ok) throw new Error("Viewer counts will update when the connection returns.");
-        const data = await response.json(); if (!controller.signal.aborted) { setRooms(data.rooms); setError(""); }
+        const data = await response.json(); if (!controller.signal.aborted) { setRooms(authorizedChoices ? scope === "private" ? data.privateTheaters : data.publicTheaters : data.rooms); setError(""); }
       } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Unable to refresh theaters."); }
       finally { pending = false; }
     }
     const timer = setInterval(() => { void refresh(); }, 10000);
     document.addEventListener("visibilitychange", refresh);
     return () => { clearInterval(timer); controller.abort(); document.removeEventListener("visibilitychange", refresh); };
-  }, [scope, upcoming, ended, signedIn, movieId]);
+  }, [scope, upcoming, ended, signedIn, movieId, authorizedChoices]);
   const visibleRooms = rooms.filter(room => !liveOnly || room.status === "Live").slice(0, limit);
   return <>
     {error && <p role="status" className="muted">{error}</p>}
@@ -38,7 +39,7 @@ export function TheaterLobby({ initial, scope, upcoming, ended = false, signedIn
         <div className="screening-details">
           <span className="screening-state" data-testid="screening-status">{room.visibility === "PRIVATE" ? <Lock size={12} /> : <Radio size={12} />}{room.status}</span>
           <h3>{room.title}</h3><p className="screening-movie">{room.movie.title}</p>
-          <p>{room.movie.genres.join(" / ")} · {Math.round(room.movie.durationSeconds / 60)} min</p>
+          <p>{room.movie.genres.join(" / ")} · {runtimeLabel(room.movie.durationSeconds)}</p>
           <p className="screening-schedule"><ScreeningTime value={room.scheduledAt || room.createdAt} /></p>
           {room.status === "Upcoming" && room.scheduledAt && <p><ScreeningCountdown startsAt={room.scheduledAt} serverTime={room.serverTime} /></p>}
           <p>{room.online} watching · {room.capacity} seats</p>

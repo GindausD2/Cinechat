@@ -36,8 +36,8 @@ test("all page families reflow at representative widths and both themes", async 
     const club = await page.request.post("/api/clubs", { headers, data: { action: "create", name: "C".repeat(60), description: "D".repeat(500), genre: "Animation", color: "#98b6b8" } }); expect(club.ok()).toBe(true); const clubId = (await club.json()).id;
     await db.notification.create({ data: { userId, type: "screening", title: "N".repeat(160), href: "/cinemas" } });
     await db.watchHistory.create({ data: { userId, movieId: "big-buck-bunny", position: 40 } });
-    const publicRoutes = ["/", "/movies", "/movies/big-buck-bunny", "/cinemas", "/login", "/register", "/forgot-password", "/reset-password", "/resend-verification", "/verify", "/legal", "/legal/privacy", "/legal/terms", "/legal/cookies", "/legal/safety", "/legal/refunds", "/contact", "/missing-page"];
-    const privateRoutes = ["/settings", `/profile/${username}`, "/watchlist", "/history", "/notifications", "/community", "/clubs", `/clubs/${clubId}`, "/cinemas/new?type=private", "/admin"];
+    const publicRoutes = ["/", "/movies", "/movies/big-buck-bunny", "/people/ton-roosendaal", "/cinemas", "/login", "/register", "/forgot-password", "/reset-password", "/resend-verification", "/verify", "/legal", "/legal/privacy", "/legal/terms", "/legal/cookies", "/legal/safety", "/legal/refunds", "/contact", "/missing-page"];
+    const privateRoutes = ["/settings", "/movies/big-buck-bunny/watch", `/profile/${username}`, "/watchlist", "/history", "/notifications", "/community", "/clubs", `/clubs/${clubId}`, "/cinemas/new?type=private", "/admin"];
     for (const [target, routes] of [[publicPage, publicRoutes], [page, privateRoutes]] as const) for (const route of routes) {
       await target.goto(route); await expect(target.locator("main")).toBeVisible();
       for (const width of widths) for (const theme of ["dark", "light"]) {
@@ -138,7 +138,9 @@ test("public and private theaters keep controls, real chat and emoji reactions a
     await host.getByRole("button", { name: "Play film", exact: true }).last().click();
     await expect.poll(async () => (await db.watchHistory.findUnique({ where: { userId_movieId: { userId: hostId, movieId } } }))?.position).toBeGreaterThanOrEqual(19.9);
     await host.goto("/history"); await expect(host.getByText("Watch again", { exact: true })).toBeVisible();
-    await host.getByText("Watch again", { exact: true }).click(); await expect(host).toHaveURL(`/watch/${movieId}`);
+    await host.getByText("Watch again", { exact: true }).click(); await expect(host).toHaveURL(`/movies/${movieId}`);
+    await host.getByRole("link", { name: "Watch now", exact: true }).click(); await expect(host).toHaveURL(`/movies/${movieId}/watch`);
+    await host.getByRole("link", { name: "Watch on your own" }).click(); await expect(host).toHaveURL(`/watch/${movieId}`);
     await host.getByTestId("cinema-video").scrollIntoViewIfNeeded();
     await expect.poll(() => host.getByTestId("cinema-video").evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(1);
     await expect.poll(async () => Number(await host.getByRole("slider", { name: "Seek film", exact: true }).inputValue())).toBeLessThan(.25);
@@ -155,7 +157,7 @@ test("enlarged text, keyboard-height forms and modal focus remain usable", async
     userId = await accountViaApi(page, username);
     const findings: unknown[] = [];
     await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-    const routes = ["/register", "/settings", `/profile/${username}`, "/movies", "/movies/big-buck-bunny", "/cinemas/new?type=private", "/history", "/legal/cookies", "/contact"];
+    const routes = ["/register", "/settings", `/profile/${username}`, "/movies", "/movies/big-buck-bunny", "/people/ton-roosendaal", "/movies/big-buck-bunny/watch", "/cinemas/new?type=private", "/history", "/legal/cookies", "/contact"];
     for (const route of routes) {
       await page.goto(route); await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
       expect(await page.locator("body").evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(28);

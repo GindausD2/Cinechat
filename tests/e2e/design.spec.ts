@@ -77,7 +77,7 @@ test("discovery and movie editorial layouts render in both themes at desktop and
       await expect(page.getByRole("heading", { level: 1, name: "Big Buck Bunny" })).toBeVisible();
       await capture(page,`home-${device}-${theme.toLowerCase()}`);
       await page.goto("/movies/big-buck-bunny");
-      await expect(page.getByRole("heading", { name: "Cast & creators" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Cast & crew", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "More like this" })).toBeVisible();
       await capture(page,`movie-${device}-${theme.toLowerCase()}`);
       await page.goto("/");

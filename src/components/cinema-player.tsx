@@ -12,16 +12,52 @@ function formatTime(value: number) { const seconds = Math.max(0, Math.floor(valu
 function applySubtitleLanguage(element: HTMLVideoElement | null, language: string) {
   if (element) for (const track of element.textTracks) track.mode = track.language === language ? "showing" : "disabled";
 }
+/** Preserve authored cue positions; reserve space only for automatically placed cues. */
+function positionAutomaticCues(element: HTMLVideoElement | null, controls: HTMLDivElement | null, defaults: WeakSet<TextTrackCue>) {
+  if (!element || !controls || typeof VTTCue === "undefined") return;
+  const style = getComputedStyle(controls), bounds = controls.getBoundingClientRect();
+  const overlay = style.position === "absolute" && bounds.height > 0 && !controls.parentElement?.classList.contains("auto-controls-hidden");
+  const font = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const lineHeight = Math.max(font * .875, Math.min(element.getBoundingClientRect().width * .02, font * 1.375)) * 1.4;
+  const lines = Math.min(12, Math.max(3, Math.ceil((bounds.height + (parseFloat(style.bottom) || 0) + 16) / lineHeight) + 1));
+  for (const track of element.textTracks) for (const cue of Array.from(track.cues || [])) {
+    if (!(cue instanceof VTTCue) || !cue.snapToLines || (!defaults.has(cue) && cue.line !== "auto")) continue;
+    defaults.add(cue); const line = overlay ? -lines : "auto"; if (cue.line !== line) cue.line = line;
+  }
+}
 export type PlayerMedia = { url: string; format: string; subtitleUrl: string | null; subtitles?: Subtitle[] };
 export function CinemaPlayer({ media, playback, canControl, onControl, movieId, clockOffset = 0, isSolo = false, publicTheater = false, poster, children }: { media: PlayerMedia; playback: ClientPlayback; canControl: boolean; onControl: (action: "play" | "pause" | "seek", position?: number) => void; movieId: string; clockOffset?: number; isSolo?: boolean; publicTheater?: boolean; poster?: string; children?: ReactNode }) {
   const hlsInstance = useRef<Hls | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoHidden, setAutoHidden] = useState(false);
+  const automaticCues = useRef(new WeakSet<TextTrackCue>());
   const [revision, setRevision] = useState(0), [levels, setLevels] = useState<{ index: number; height: number }[]>([]), [quality, setQuality] = useState(-1), [captionLanguage, setCaptionLanguage] = useState("off"), [controlsVisible, setControlsVisible] = useState(true), [expanded, setExpanded] = useState(false);
   const subtitleTracks = media.subtitles || (media.subtitleUrl ? [{ language: "en", label: "English", url: media.subtitleUrl }] : []);
   const activeLanguage = subtitleTracks.some(track => track.language === captionLanguage) ? captionLanguage : "off";
   const video = useRef<HTMLVideoElement>(null), shell = useRef<HTMLDivElement>(null), controls = useRef<HTMLDivElement>(null), received = useRef(playback);
   const savedProgress = useRef({ position: -1, at: -Infinity });
   const [position, setPosition] = useState(playback.position), [muted, setMuted] = useState(true), [volume, setVolume] = useState(.7), [buffering, setBuffering] = useState(true), [error, setError] = useState("");
+  const automaticHidden = autoHidden && playback.playing && controlsVisible && !settingsOpen && !error;
+  useEffect(() => {
+    const element = shell.current; if (!element) return;
+    let timer: ReturnType<typeof setTimeout> | undefined, dragging = false;
+    const reveal = () => {
+      setAutoHidden(false); clearTimeout(timer);
+      if (!playback.playing || settingsOpen || !controlsVisible || error) return;
+      timer = setTimeout(() => {
+        const focused = document.activeElement;
+        if (dragging || (focused instanceof HTMLElement && element.contains(focused) && focused.matches(":focus-visible"))) return;
+        // In-flow phone controls remain stable below the picture; only overlays fade.
+        if (controls.current && getComputedStyle(controls.current).position === "absolute") setAutoHidden(true);
+      }, 3000);
+    };
+    const down = () => { dragging = true; reveal(); }, up = () => { dragging = false; reveal(); };
+    const frame = requestAnimationFrame(reveal);
+    element.addEventListener("pointermove", reveal); element.addEventListener("pointerdown", down);
+    element.addEventListener("keydown", reveal); element.addEventListener("focusin", reveal); element.addEventListener("focusout", reveal);
+    window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up); window.addEventListener("resize", reveal); window.addEventListener("cinechat:viewport-layout", reveal);
+    return () => { cancelAnimationFrame(frame); clearTimeout(timer); element.removeEventListener("pointermove", reveal); element.removeEventListener("pointerdown", down); element.removeEventListener("keydown", reveal); element.removeEventListener("focusin", reveal); element.removeEventListener("focusout", reveal); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up); window.removeEventListener("resize", reveal); window.removeEventListener("cinechat:viewport-layout", reveal); };
+  }, [playback.playing, settingsOpen, controlsVisible, error]);
   const persistProgress = useCallback((force = false) => {
     const element = video.current; if (!element || element.currentTime <= 0) return;
     const position = Math.min(element.currentTime, playback.duration), now = performance.now(), previous = savedProgress.current;
@@ -41,10 +77,20 @@ export function CinemaPlayer({ media, playback, canControl, onControl, movieId, 
   }, []);
   useEffect(() => {
     const element = controls.current; if (!element) return;
-    const measure = () => { const inset = parseFloat(getComputedStyle(element).bottom) || 0; shell.current?.style.setProperty("--controls-height", `${element.getBoundingClientRect().height + inset}px`); };
-    const observer = new ResizeObserver(measure); observer.observe(element); measure(); return () => observer.disconnect();
+    const measure = () => { const inset = parseFloat(getComputedStyle(element).bottom) || 0; shell.current?.style.setProperty("--controls-height", `${element.getBoundingClientRect().height + inset}px`); positionAutomaticCues(video.current, element, automaticCues.current); };
+    const observer = new ResizeObserver(measure); observer.observe(element); if (video.current) observer.observe(video.current); measure(); return () => observer.disconnect();
   }, []);
-  useEffect(() => { applySubtitleLanguage(video.current, activeLanguage); }, [activeLanguage, media.url, revision]);
+  useEffect(() => { applySubtitleLanguage(video.current, activeLanguage); positionAutomaticCues(video.current, controls.current, automaticCues.current); }, [activeLanguage, media.url, revision, automaticHidden, controlsVisible, expanded]);
+  useEffect(() => {
+    const element = video.current; if (!element) return;
+    let frame = 0;
+    const position = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => positionAutomaticCues(element, controls.current, automaticCues.current)); };
+    const nodes = Array.from(element.querySelectorAll("track")), tracks = Array.from(element.textTracks);
+    for (const node of nodes) node.addEventListener("load", position);
+    for (const track of tracks) track.addEventListener("cuechange", position);
+    element.textTracks.addEventListener("change", position); position();
+    return () => { cancelAnimationFrame(frame); for (const node of nodes) node.removeEventListener("load", position); for (const track of tracks) track.removeEventListener("cuechange", position); element.textTracks.removeEventListener("change", position); };
+  }, [activeLanguage, media.url, revision]);
   useEffect(() => {
     const element = video.current; if (!element) return;
     let hls: Hls | null = null, disposed = false; let recoveries = 0;
@@ -163,7 +209,7 @@ export function CinemaPlayer({ media, playback, canControl, onControl, movieId, 
   const { externalImages } = useCookiePreferences();
   const safePoster = poster && (isLocalImage(poster) || (externalImages && isExternalImage(poster))) ? poster : undefined;
   // eslint-disable-next-line jsx-a11y/media-has-caption -- Render caption tracks only when the authorized source supplies them.
-  return <div className={`player-shell ${expanded ? "is-expanded" : ""} ${controlsVisible ? "" : "controls-hidden"} ${error ? "has-error" : ""} ${children ? "has-reactions" : ""}`} ref={shell} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={expanded ? "Fullscreen cinema" : undefined}><video ref={video} data-testid="cinema-video" poster={safePoster} crossOrigin="anonymous" muted={muted} playsInline preload="metadata" onTimeUpdate={onTimeUpdate} onPause={() => persistProgress(true)} onLoadedMetadata={() => { if (!received.current.playing) setBuffering(false); restoreTimeline(); }} onLoadStart={() => setBuffering(true)} onWaiting={() => setBuffering(true)} onCanPlay={mediaReady} onPlaying={() => { setBuffering(false); setError(current => current.startsWith("Your browser needs") ? "" : current); }} onError={mediaError} onEnded={() => { persistProgress(true); if (canControl) onControl("pause", playback.duration); }} aria-label="Cinema video">{subtitleTracks.map(track => <track key={`${track.language}-${track.url}`} kind="subtitles" src={track.url} srcLang={track.language} label={track.label} onLoad={() => applySubtitleLanguage(video.current, activeLanguage)} />)}</video>
+  return <div className={`player-shell ${expanded ? "is-expanded" : ""} ${automaticHidden ? "auto-controls-hidden" : ""} ${controlsVisible ? "" : "controls-hidden"} ${error ? "has-error" : ""} ${children ? "has-reactions" : ""}`} ref={shell} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={expanded ? "Fullscreen cinema" : undefined}><video ref={video} data-testid="cinema-video" poster={safePoster} crossOrigin="anonymous" muted={muted} playsInline preload="metadata" onTimeUpdate={onTimeUpdate} onPause={() => persistProgress(true)} onLoadedMetadata={() => { if (!received.current.playing) setBuffering(false); restoreTimeline(); }} onLoadStart={() => setBuffering(true)} onWaiting={() => setBuffering(true)} onCanPlay={mediaReady} onPlaying={() => { setBuffering(false); setError(current => current.startsWith("Your browser needs") ? "" : current); }} onError={mediaError} onEnded={() => { persistProgress(true); if (canControl) onControl("pause", playback.duration); }} aria-label="Cinema video">{subtitleTracks.map(track => <track key={`${track.language}-${track.url}`} kind="subtitles" src={track.url} srcLang={track.language} label={track.label} onLoad={() => { applySubtitleLanguage(video.current, activeLanguage); positionAutomaticCues(video.current, controls.current, automaticCues.current); }} />)}</video>
     {!playback.playing && !buffering && <button aria-label={canControl ? "Play film" : "Waiting for host"} className="center-play" onClick={toggle} disabled={!canControl}><Play size={28} fill="currentColor" /></button>}
     {buffering && <div className="player-loading" role="status"><LoaderCircle size={28} className="spin" /><span>Finding your frame…</span></div>}
     {error && <div className="player-error" role="alert">{error}<button onClick={error.startsWith("Your browser needs") ? allowPlayback : reload}>{error.startsWith("Your browser needs") ? "Tap to Start Watching" : "Reload media"}</button></div>}

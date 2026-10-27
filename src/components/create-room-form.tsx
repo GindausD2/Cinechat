@@ -30,7 +30,7 @@ export function CreateRoomForm({ movies, selected, initialType, canCreatePublic 
       <label>Screening date (optional)<input name="scheduledAt" type="datetime-local" /><small>Leave empty to go live now. Your local time.</small></label>
     </div>
     {privacy === "PRIVATE" && <label>Access code (optional)<input name="accessCode" type="password" minLength={6} maxLength={64} autoComplete="new-password" placeholder="An extra layer for your invitation" /><small>Guests need both the invitation and this code.</small></label>}
-    <label>Theater atmosphere<select name="theme" defaultValue="silver"><option value="silver">CineChat classic</option><option value="blue">Blue screening room</option><option value="midnight">Midnight cinema</option></select><small>A subtle accent for your screening. All atmospheres are free.</small></label>
+    <label>Theater atmosphere<select name="theme" defaultValue="silver"><option value="silver">CineChat classic</option><option value="blue">Soft contrast</option><option value="midnight">Midnight cinema</option></select><small>A subtle accent for your screening. All atmospheres are free.</small></label>
     {!movies.length && <p role="status" className="muted">No films are currently authorized for your age and region.</p>}
     {error && <p role="alert" className="error-message">{error}</p>}
     <GlassButton variant="primary" disabled={busy || !movies.length}>{busy ? "Preparing your theater…" : "Create theater"}<ArrowRight size={16} /></GlassButton>

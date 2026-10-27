@@ -172,6 +172,8 @@ model Movie {
   durationSeconds  Int
   genres           String[]
   cast             String[]
+  audioLanguages   String[]       @default([])
+  audioLanguageSource String?
   poster           String
   backdrop         String
   color            String         @default("#d9e4c8")
@@ -185,10 +187,45 @@ model Movie {
   watchlists       Watchlist[]
   history          WatchHistory[]
   rooms            CinemaRoom[]
+  credits          MovieCredit[]
 
   @@index([title])
   @@index([createdAt])
   @@index([createdAt, id])
+}
+
+model Person {
+  slug                 String        @id @db.VarChar(120)
+  name                 String        @db.VarChar(160)
+  biography            String        @db.Text
+  professions          String[]      @default([])
+  sourceUrl            String
+  verifiedAt           DateTime
+  portraitUrl          String?
+  portraitLicenseUrl   String?
+  portraitAttribution  String?
+  portraitSourceUrl    String?
+  credits              MovieCredit[]
+
+  @@index([name])
+}
+
+model MovieCredit {
+  id            String   @id @default(cuid())
+  movieId       String
+  personSlug    String   @db.VarChar(120)
+  job           String   @db.VarChar(120)
+  department    String   @db.VarChar(80)
+  characterName String?  @db.VarChar(160)
+  displayOrder  Int      @default(0)
+  sourceUrl     String
+  verifiedAt    DateTime
+  movie         Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  person        Person   @relation(fields: [personSlug], references: [slug], onDelete: Restrict)
+
+  @@unique([movieId, personSlug, job])
+  @@index([personSlug, movieId])
+  @@index([movieId, displayOrder])
 }
 
 model MediaSource {
