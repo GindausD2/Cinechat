@@ -1,0 +1,111 @@
+/* Shared reflow rules; horizontal browsing belongs inside rails/tables. */
+html { scroll-padding-block: calc(var(--header-height,78px) + 12px) calc(var(--mobile-nav-height,0px) + 16px); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-inline-size: 0; }
+main,section,article,form,.glass-card,.glass-sidebar,.form-stack,.form-grid>*,.page-heading>*,.cinema-heading>*,.settings-grid>*,.profile-columns>*,.home-columns>* { min-inline-size: 0; }
+h1,h2,h3,p,blockquote,dd,.list-row,.participant,.person-card { overflow-wrap: anywhere; }
+input,textarea,select { min-inline-size: 0; max-inline-size: 100%; scroll-margin-block: calc(var(--header-height,78px) + 16px) calc(var(--mobile-nav-height,0px) + 16px); }
+.button,.pill { max-inline-size: 100%; text-align: center; }
+.button svg,.pill svg,.notification>svg { flex-shrink: 0; }
+.page-heading,.cinema-heading { flex-wrap: wrap; }
+.profile-cover>div { flex: 1 1 240px; min-inline-size: 0; }
+.profile-cover { flex-wrap: wrap; }
+.profile-columns { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.club-card,.notification>div { min-inline-size: 0; }
+.notification>div { flex: 1; }
+.admin-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.schedule-date .screening-countdown { display: block; margin-top: 6px; }
+.glass-modal { max-height: min(calc(100dvh - 32px),calc(var(--visual-viewport-height,100dvh) - 32px)); }
+.modal-title h2 { min-inline-size: 0; }
+.desktop-nav { height: auto; min-height: 78px; }
+.brand { font-size: clamp(18px,1.4375rem,23px); }
+.player-shell>video { display: block; }
+.player-source-options { display: contents; }
+.controls-row { flex-wrap: wrap; }
+.controls-row .quality-select,.controls-row .subtitle-select { min-height: 44px; }
+.controls-row .player-settings-toggle { display: none; }
+.player-shell .player-settings-dialog { color: var(--text); }
+.player-shell .player-settings-dialog select { width: 100%; min-height: 44px; font-size: 1rem; }
+.player-shell .player-settings-dialog p { color: var(--muted); }
+.glass-player-controls,.reaction-bar { -webkit-backdrop-filter: blur(8px); }
+.navbar,.mobile-nav,.glass-modal,.theme-dropdown { -webkit-backdrop-filter: blur(12px); }
+.chat-messages,.participants,.glass-modal,.reaction-bar { -webkit-overflow-scrolling: touch; }
+.chat-message p,.screening-details { min-inline-size: 0; }
+.message-top { flex-wrap: wrap; }
+.message-top strong { min-inline-size: 0; overflow-wrap: anywhere; }
+.message-top button,.message-react,.participant-actions button { min-height: 44px; min-width: 44px; }
+.chat-compose input { min-inline-size: 0; }
+.cinema-film-info>div { min-inline-size: 0; }
+.cinema-film-info .button { white-space: normal; }
+.player-shell.has-reactions { min-height: max(240px,calc(var(--controls-height,84px) + 132px)); }
+.player-shell:fullscreen,.player-shell.is-expanded { min-height: 0; }
+.player-shell:fullscreen>video,.player-shell.is-expanded>video { height: 100%; }
+.controls-row input.volume-slider { min-height: 44px; height: 44px; }
+.seek-line input { min-height: 44px; height: 44px; }
+.seek-line input,.controls-row input.volume-slider { appearance: none; -webkit-appearance: none; background: transparent; }
+.seek-line input::-webkit-slider-runnable-track,.controls-row input.volume-slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right,var(--player-accent) 0% var(--range-progress,0%),#cbd1dc var(--range-progress,0%) 100%); }
+.seek-line input::-moz-range-track,.controls-row input.volume-slider::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(to right,var(--player-accent) 0% var(--range-progress,0%),#cbd1dc var(--range-progress,0%) 100%); }
+.seek-line input::-moz-range-progress,.controls-row input.volume-slider::-moz-range-progress { background: transparent; }
+.seek-line input::-webkit-slider-thumb,.controls-row input.volume-slider::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; box-sizing: border-box; width: 18px; height: 18px; margin-top: -7px; border: 2px solid #fff; border-radius: 50%; background: var(--player-accent); }
+.seek-line input::-moz-range-thumb,.controls-row input.volume-slider::-moz-range-thumb { box-sizing: border-box; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50%; background: var(--player-accent); }
+.reaction-bar button { width: 44px; height: 44px; flex-basis: 44px; line-height: 1; display: grid; place-items: center; font-size: clamp(20px,1.3125rem,24px); }
+.reaction-bar { touch-action: pan-x; }
+
+@media(min-width:701px) and (max-width:1100px) {
+  .navbar { display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 24px; padding-top: 10px; }
+  .nav-actions { justify-self: end; }
+  .desktop-nav { grid-column: 1/-1; grid-row: 2; height: auto; min-height: 44px; justify-content: flex-start; flex-wrap: wrap; }
+  .desktop-nav a { padding-block: 10px 14px; }
+  .desktop-nav a.active:after { bottom: 7px; }
+}
+@media(max-width:900px) {
+  .glass-chat-panel { max-height: min(600px,80dvh); min-height: 380px; height: 65dvh; }
+}
+@media(max-width:700px) {
+  :root,:root[data-theme] { --gutter: max(clamp(16px,5vw,20px),env(safe-area-inset-left,0px),env(safe-area-inset-right,0px)); }
+  body { padding-bottom: var(--mobile-nav-height,calc(68px + env(safe-area-inset-bottom,0px))); }
+  .navbar { padding-left: max(16px,env(safe-area-inset-left,0px)); padding-right: max(16px,env(safe-area-inset-right,0px)); padding-top: env(safe-area-inset-top,0px); }
+  .brand { font-size: clamp(18px,1.3125rem,21px); }
+  .mobile-nav { padding-left: max(8px,env(safe-area-inset-left,0px)); padding-right: max(8px,env(safe-area-inset-right,0px)); }
+  .mobile-nav a span { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }
+  .mobile-nav a { min-inline-size: 0; text-align: center; line-height: 1.3; overflow-wrap: anywhere; }
+  .settings-grid,.profile-columns { grid-template-columns: minmax(0,1fr); }
+  .glass-card,.glass-sidebar,.auth-card { padding: 20px; }
+  .glass-modal { padding: 20px; }
+  input,textarea,select,.chat-compose input { font-size: 1rem; }
+  .checkbox { gap: 14px; }
+  .checkbox input { flex-shrink: 0; }
+  .screening-details .screening-time { overflow-wrap: anywhere; }
+  .controls-row button { width: 44px; height: 44px; }
+  .admin-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-metrics .glass-card { padding: 16px; }
+  .cookie-banner { bottom: calc(var(--mobile-nav-height,68px) + 12px); }
+  :root[data-keyboard-open="true"] .mobile-nav { visibility: hidden; pointer-events: none; }
+  :root[data-keyboard-open="true"] body { padding-bottom: 0; }
+}
+@container(max-width:620px) {
+  .controls-row .player-source-options { display: none; }
+  .controls-row .player-settings-toggle { display: flex; }
+  .controls-row .host-control-label { display: none; }
+  .controls-row input.volume-slider { display: none; }
+  .reaction-bar button { width: 44px; height: 44px; flex-basis: 44px; }
+  .controls-row.has-quality button { width: 44px; height: 44px; }
+}
+@media(pointer:coarse) { input,textarea,select,.controls-row select { font-size: 1rem; } }
+/* Small portrait screens keep captions and the film clear of persistent controls. */
+@media(max-width:700px) and (orientation:portrait) {
+  .player-shell:not(:fullscreen):not(.is-expanded) { aspect-ratio: auto; min-height: 0; }
+  .player-shell:not(:fullscreen):not(.is-expanded)>video { width: 100%; height: auto; aspect-ratio: 16/9; object-fit: contain; }
+  .player-shell:not(:fullscreen):not(.is-expanded) .glass-player-controls { position: relative; inset: auto; margin: 6px; }
+  .player-shell:not(:fullscreen):not(.is-expanded) .theater-reactions { position: static; height: 60px; max-width: 100%; transform: none; padding: 4px 6px 0; }
+  .player-shell:not(:fullscreen):not(.is-expanded) .reaction-bar { position: static; max-width: 100%; width: fit-content; margin-inline: auto; transform: none; }
+  .player-shell:not(:fullscreen):not(.is-expanded) .center-play { top: calc(100cqw * .28125); }
+  .player-shell:not(:fullscreen):not(.is-expanded) .player-loading { inset: 0 0 auto; aspect-ratio: 16/9; }
+  .player-shell.has-error:not(:fullscreen):not(.is-expanded)>video { display: none; }
+  .player-shell:not(:fullscreen):not(.is-expanded) .player-error { position: relative; inset: auto; min-height: 160px; }
+}
+@media(max-width:430px) {
+  .section-header { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  .form-grid { gap: 16px; }
+  .brand { gap: 8px; }
+}
+@media(prefers-reduced-motion:reduce) { .glass-modal,.player-shell { scroll-behavior: auto; } }

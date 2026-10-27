@@ -1,0 +1,49 @@
+.club-grid,.people-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 22px; }
+.club-card { --club-color: var(--accent); border-top: 2px solid var(--club-color); }
+.club-emblem { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: var(--elevated); margin-bottom: 20px; }
+.club-card .eyebrow { font-size: 0.625rem; color: var(--muted); margin-bottom: 12px; }
+.club-card h2 { font-size: 1.3125rem; }
+.club-card p { font-size: 0.8125rem; }
+.club-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.75rem; color: var(--muted); }
+.person-card { display: flex; align-items: flex-start; flex-direction: column; gap: 14px; }
+.person-card>.avatar { width: 45px; height: 45px; font-size: 0.8125rem; }
+.person-card strong { font-size: 0.875rem; }
+.person-card p { margin: 0; font-size: 0.8125rem; }
+.person-card .button { font-size: 0.75rem; padding: 8px 12px; min-height: 44px; }
+.notification { justify-content: flex-start; gap: 20px; }
+.notification p { margin: 0 0 4px; font-size: 0.875rem; }
+.notification>.live-dot { margin-left: auto; }
+.notification.read { color: var(--muted); }
+.admin-metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+.admin-metrics span { font-size: 0.75rem; }
+.admin-metrics strong { display: block; font-size: 2rem; color: var(--text); font-family: "Montserrat",sans-serif; margin-top: 15px; }
+.admin-report { margin-bottom: 20px; }
+.admin-report p { font-size: 0.8125rem; }
+.admin-report blockquote { padding: 14px; border-left: 2px solid var(--muted); background: var(--elevated); font-size: 0.8125rem; margin: 18px 0; }
+.admin-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 24px; }
+.admin-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8125rem; }
+.admin-table-wrap th { padding: 16px; color: var(--muted); background: var(--surface); font-weight: 500; }
+.admin-table-wrap td { padding: 16px; border-top: 1px solid var(--line); min-width: 100px; }
+.admin-table-wrap td small { display: block; max-width: 300px; overflow-wrap: anywhere; font-size: 0.6875rem; color: var(--muted); margin-top: 8px; }
+.admin-table-wrap .button { font-size: 0.75rem; padding: 9px 12px; min-height: 44px; }
+.billing-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 44px; }
+.billing-plans .pro-plan { background: var(--elevated); border-color: var(--accent); }
+.plan-price { font-family: "Montserrat",sans-serif; font-size: 2.25rem; color: var(--text); margin: 24px 0; }
+.plan-price small { font-family: "Inter",sans-serif; font-size: 0.8125rem; color: var(--muted); }
+.plan-features { list-style: none; padding: 0; margin: 28px 0; display: flex; flex-direction: column; gap: 16px; color: var(--muted); font-size: 0.8125rem; }
+.plan-features li { display: flex; align-items: center; gap: 10px; }
+.plan-features svg { color: var(--accent-text); }
+.plan-note { font-size: 0.75rem; color: var(--muted); padding: 16px; border: 1px solid var(--line); border-radius: 5px; }
+@media(max-width:900px) {
+  .club-grid,.people-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-metrics { grid-template-columns: repeat(2,1fr); }
+}
+@media(max-width:700px) {
+  .club-grid,.people-grid,.billing-plans { grid-template-columns: 1fr; }
+  .person-card .button-row { width: 100%; }
+  .admin-metrics { gap: 12px; }
+  .admin-metrics .glass-card { padding: 20px; }
+  .admin-metrics strong { font-size: 1.75rem; }
+  .notification p { font-size: 0.8125rem; }
+  .notification { gap: 12px; }
+}
